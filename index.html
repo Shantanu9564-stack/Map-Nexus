@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Map Nexus</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    /* Background Video */
+    #bg-video {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: cover;
+      z-index: -2;
+    }
+
+    /* Overlay */
+    .overlay {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: -1;
+    }
+
+    /* Navbar */
+    .navbar {
+      position: absolute;
+      top: 0;
+      width: 100%;
+      text-align: center;
+      color: white;
+      padding: 15px;
+      z-index: 1;
+    }
+
+    /* Login Box */
+    .login-box {
+      width: 300px;
+      padding: 25px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 10px;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .login-box input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+    }
+
+    .login-box button {
+      width: 100%;
+      padding: 10px;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+
+</head>
+<body>
+
+<!-- Background Video -->
+<video autoplay muted loop id="bg-video">
+  <source src="video/bg.mp4" type="video/mp4">
+</video>
+
+<!-- Overlay -->
+<div class="overlay"></div>
+
+<!-- Navbar -->
+<header class="navbar">
+  <h1>Map Nexus</h1>
+</header>
+
+<!-- Login Section -->
+<div class="login-box">
+  <h2>Login</h2>
+
+  <input type="text" id="username" placeholder="Username">
+  <input type="password" id="password" placeholder="Password">
+
+  <button onclick="login()">Login</button>
+</div>
+
+<script>
+function login() {
+  let user = document.getElementById("username").value;
+  let pass = document.getElementById("password").value;
+
+  if(user === "admin" && pass === "1234") {
+    window.location.href = "dashboard.html";
+  } else {
+    alert("Invalid login!");
+  }
+}
+</script>
+
+</body>
+</html>
