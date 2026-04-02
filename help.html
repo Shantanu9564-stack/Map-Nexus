@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Help</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      overflow: hidden;
+    }
+
+    /* Background Video */
+    #bgVideo {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: cover;
+      z-index: -1;
+    }
+
+    /* Content */
+    .content {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+
+      background: rgba(0,0,0,0.6);
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .box {
+      max-width: 600px;
+    }
+
+    ul {
+      text-align: left;
+    }
+
+    a {
+      color: #00c3ff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      border: none;
+      background: #007bff;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- Background Video -->
+<video autoplay muted loop id="bgVideo">
+  <source src="video/bg.mp4" type="video/mp4">
+</video>
+
+<!-- Content -->
+<div class="content">
+
+  <div class="box">
+    <h1>Help & Support</h1>
+
+    <h3>📌 How to Use This Website</h3>
+    <ul>
+      <li>Login using your username and password</li>
+      <li>Go to Dashboard to access features</li>
+      <li>Use Map to view locations</li>
+      <li>Submit Review to share your feedback</li>
+    </ul>
+
+    <h3>🔗 Useful Links</h3>
+    <ul>
+      <li><a href=https://www.linkedin.com/in/shantanu-sarkar-18aab4253/ target="_blank">Linkdin</a></li>
+      <li><a href="https://github.com/Shantanu9564-stack" target="_blank">GitHub</a></li>
+    </ul>
+
+    <h3>📞 Contact</h3>
+    <p>Email:shantanusarkar867@gmail.com</p>
+
+    <button onclick="goBack()">⬅ Back to Dashboard</button>
+  </div>
+
+</div>
+
+<script>
+function goBack() {
+  window.location.href = "dashboard.html";
+}
+</script>
+
+</body>
+</html>

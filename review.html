@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Submit Review</title>
+
+  <style>
+    /* Reset */
+    body {
+      margin: 0;
+      font-family: Arial;
+      overflow: hidden;
+    }
+
+    /* Background Video */
+    #bgVideo {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: cover;
+      z-index: -1;
+    }
+
+    /* Center Content */
+    .content {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+
+      background: rgba(0, 0, 0, 0.5); /* overlay */
+      color: white;
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    input, textarea, select {
+      width: 300px;
+      padding: 10px;
+      margin: 10px;
+      border-radius: 5px;
+      border: none;
+    }
+
+    textarea {
+      height: 100px;
+      resize: none;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    #message {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+
+</head>
+
+<body>
+
+<!-- Background Video -->
+<video autoplay muted loop id="bgVideo">
+  <source src="video/bg.mp4" type="video/mp4">
+</video>
+
+<!-- Content -->
+<div class="content">
+
+  <h2>Submit Your Review</h2>
+
+  <input type="text" id="name" placeholder="Your Name">
+
+  <select id="rating">
+    <option value="">Select Rating</option>
+    <option value="1">1 ⭐</option>
+    <option value="2">2 ⭐⭐</option>
+    <option value="3">3 ⭐⭐⭐</option>
+    <option value="4">4 ⭐⭐⭐⭐</option>
+    <option value="5">5 ⭐⭐⭐⭐⭐</option>
+  </select>
+
+  <textarea id="comment" placeholder="Write your review"></textarea>
+
+  <button onclick="submitReview()">Submit</button>
+
+  <p id="message"></p>
+
+</div>
+
+<script>
+function submitReview() {
+    let name = document.getElementById("name").value;
+    let rating = document.getElementById("rating").value;
+    let comment = document.getElementById("comment").value;
+
+    if (name === "" || rating === "" || comment === "") {
+        document.getElementById("message").innerHTML = "⚠️ Please fill all fields";
+        return;
+    }
+
+    let review = {
+        name: name,
+        rating: rating,
+        comment: comment
+    };
+
+    localStorage.setItem("userReview", JSON.stringify(review));
+
+    document.getElementById("message").innerHTML = "✅ Review submitted successfully!";
+
+    setTimeout(() => {
+        window.location.href = "dashboard.html";
+    }, 2000);
+}
+</script>
+
+</body>
+</html>

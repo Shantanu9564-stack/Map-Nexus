@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+
+  <style>
+    /* Remove default margin */
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    /* Background video */
+    #bg-video {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      min-width: 100%;
+      min-height: 100%;
+      z-index: -1;
+      object-fit: cover;
+    }
+
+    /* Center content */
+    .container {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 30px;
+      text-shadow: 2px 2px 5px black;
+    }
+
+    /* Buttons */
+    .menu button {
+      display: block;
+      width: 200px;
+      padding: 12px;
+      margin: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(0, 123, 255, 0.8);
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .menu button:hover {
+      background: rgba(0, 86, 179, 0.9);
+      transform: scale(1.05);
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <!-- Background Video -->
+  <video autoplay muted loop id="bg-video">
+    <source src="video/bg.mp4" type="video/mp4">
+    Your browser does not support HTML5 video.
+  </video>
+
+  <!-- Center Content -->
+  <div class="container">
+    <h1>Welcome to Dashboard</h1>
+
+    <div class="menu">
+      <button onclick="goToPage('map.html')">Map</button>
+      <button onclick="goToPage('help.html')">Help</button>
+      <button onclick="goToPage('review.html')">Submit Review</button>
+    </div>
+  </div>
+
+  <script>
+    function goToPage(page) {
+      window.location.href = page;
+    }
+  </script>
+
+</body>
+</html>
