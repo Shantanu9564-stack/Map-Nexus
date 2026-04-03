@@ -77,7 +77,7 @@
 
 <!-- Background Video -->
 <video autoplay muted loop id="bgVideo">
-  <source src="bg.mp4" type="video/mp4">
+  <source src="video/bg.mp4" type="video/mp4">
 </video>
 
 <!-- Content -->
@@ -104,32 +104,57 @@
 
 </div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
 <script>
-function submitReview() {
+  const firebaseConfig = {
+    apiKey: "AIzaSyDlOTT5UXcIjP0gNdN5JQc3Dbks6nRbbmQ",
+    authDomain: "mapnexus-6d00e.firebaseapp.com",
+    projectId: "mapnexus-6d00e"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  function submitReview() {
     let name = document.getElementById("name").value;
     let rating = document.getElementById("rating").value;
     let comment = document.getElementById("comment").value;
 
     if (name === "" || rating === "" || comment === "") {
-        document.getElementById("message").innerHTML = "⚠️ Please fill all fields";
-        return;
+      document.getElementById("message").innerHTML = "⚠️ Please fill all fields";
+      return;
     }
 
-    let review = {
-        name: name,
-        rating: rating,
-        comment: comment
-    };
+    // Save to Firebase
+    db.collection("reviews").add({
+      name: name,
+      rating: rating,
+      comment: comment,
+      email: auth.currentUser ? auth.currentUser.email : "guest",
+      timestamp: new Date()
+    })
+    .then(() => {
+      document.getElementById("message").innerHTML = "✅ Review submitted successfully!";
 
-    localStorage.setItem("userReview", JSON.stringify(review));
+      // Clear form
+      document.getElementById("name").value = "";
+      document.getElementById("rating").value = "";
+      document.getElementById("comment").value = "";
 
-    document.getElementById("message").innerHTML = "✅ Review submitted successfully!";
-
-    setTimeout(() => {
+      setTimeout(() => {
         window.location.href = "dashboard.html";
-    }, 2000);
-}
-</script>
-
-</body>
+      }, 2000);
+    })
+    .catch(error => {
+      document.getElementById("message").innerHTML = "❌ Error: " + error.message;
+      console.error(error);
+    });
+  }
+</script></body>
 </html>
