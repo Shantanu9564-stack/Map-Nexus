@@ -4,14 +4,12 @@
   <title>Dashboard</title>
 
   <style>
-    /* Remove default margin */
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       overflow: hidden;
     }
 
-    /* Background video */
     #bg-video {
       position: fixed;
       right: 0;
@@ -22,7 +20,6 @@
       object-fit: cover;
     }
 
-    /* Center content */
     .container {
       height: 100vh;
       display: flex;
@@ -34,11 +31,16 @@
     }
 
     h1 {
-      margin-bottom: 30px;
+      margin-bottom: 10px;
       text-shadow: 2px 2px 5px black;
     }
 
-    /* Buttons */
+    #user-email {
+      margin-bottom: 20px;
+      font-size: 14px;
+      color: #ddd;
+    }
+
     .menu button {
       display: block;
       width: 200px;
@@ -72,17 +74,53 @@
   <!-- Center Content -->
   <div class="container">
     <h1>Welcome to Dashboard</h1>
+    <p id="user-email"></p> <!-- ✅ Show logged user -->
 
     <div class="menu">
       <button onclick="goToPage('map.html')">Map</button>
       <button onclick="goToPage('help.html')">Help</button>
       <button onclick="goToPage('review.html')">Submit Review</button>
+      <button onclick="logout()">Logout</button> <!-- ✅ Added -->
     </div>
   </div>
 
   <script>
     function goToPage(page) {
       window.location.href = page;
+    }
+  </script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDlOTT5UXcIjP0gNdN5JQc3Dbks6nRbbmQ",
+      authDomain: "mapnexus-6d00e.firebaseapp.com",
+      projectId: "mapnexus-6d00e"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // 🔐 Protect Dashboard
+    auth.onAuthStateChanged(function(user) {
+      if (user) {
+        // Show email
+        document.getElementById("user-email").innerText = "Logged in as: " + user.email;
+      } else {
+        alert("Please login first!");
+        window.location.href = "index.html";
+      }
+    });
+
+    // 🔓 Logout
+    function logout() {
+      auth.signOut().then(() => {
+        alert("Logged out ✅");
+        window.location.href = "index.html";
+      });
     }
   </script>
 
