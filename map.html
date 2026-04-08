@@ -121,6 +121,7 @@ const suggestionBox = document.getElementById('suggestions');
 
 let control = null;
 let userMarker = null;
+let userCircle = null;
 let searchMarker = null;
 let watchId = null;
 
@@ -224,7 +225,32 @@ function startLiveRoute(destLat, destLng){
     const userLat = pos.coords.latitude;
     const userLng = pos.coords.longitude;
 
-    if (userMarker) map.removeLayer(userMarker);
+    map.setView([userLat, userLng]);
+
+   // 🔵 Google Maps style blue dot + accuracy circle
+
+if (!userMarker) {
+  userMarker = L.circleMarker([userLat, userLng], {
+    radius: 8,
+    color: "#fff",
+    weight: 2,
+    fillColor: "#007bff",
+    fillOpacity: 1
+  }).addTo(map);
+
+  // accuracy circle
+  userCircle = L.circle([userLat, userLng], {
+    radius: pos.coords.accuracy,
+    color: "#007bff",
+    fillColor: "#007bff",
+    fillOpacity: 0.15
+  }).addTo(map);
+
+} else {
+  userMarker.setLatLng([userLat, userLng]);
+  userCircle.setLatLng([userLat, userLng]);
+  userCircle.setRadius(pos.coords.accuracy);
+}
 
     userMarker = L.marker([userLat, userLng])
       .addTo(map)
