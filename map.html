@@ -225,8 +225,9 @@ function startLiveRoute(destLat, destLng){
     const userLat = pos.coords.latitude;
     const userLng = pos.coords.longitude;
 
-   map.panTo([userLat, userLng]);
-
+   if (!map.getBounds().contains([userLat, userLng])) {
+  map.panTo([userLat, userLng]);
+}
    // 🔵 Google Maps style blue dot + accuracy circle
 
 if (!userMarker) {
