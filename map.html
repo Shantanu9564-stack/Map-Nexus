@@ -39,7 +39,6 @@ body { margin:0; font-family: Arial; }
 }
 .suggestion-item:hover { background:#f1f5f9; }
 
-/* Contribution Button */
 #contributeBtn {
   position: fixed;
   bottom: 20px;
@@ -71,88 +70,36 @@ body { margin:0; font-family: Arial; }
 
 <body>
 
-<!-- HEADER -->
 <div style="position:absolute;top:0;left:0;width:100%;background:#1e293b;color:white;
-z-index:1200;padding:10px 15px;display:flex;align-items:center;gap:12px;
-box-shadow:0 2px 6px rgba(0,0,0,0.3)">
-
-<img src="./logo.jpeg" style="width:40px;height:40px;border-radius:50%;border:2px solid white;" />
-
-<div style="flex:1">
-<div style="font-size:18px;font-weight:bold;">Map Nexus</div>
-<div style="font-size:12px;opacity:0.8">
-The World 
-</div>
-</div>
+z-index:1200;padding:10px 15px;display:flex;align-items:center;gap:12px;">
 
 <input type="text" id="searchBox"
-placeholder="Search place name..."
+placeholder="Search any place in world..."
 style="padding:6px 10px;border-radius:6px;border:none;width:220px;" />
 </div>
 
 <div id="map"></div>
 <div id="suggestions"></div>
 
-<!-- Contribution Button -->
-<div id="contributeBtn" onclick="toggleContribution()">Contribute</div>
-
-<div id="contributionBox">
-<p>Want to add a Bengali place?</p>
-<a href="mailto:shantanusarkar867@gmail.com?subject=Add Place">
-shantanusarkar867@gmail.com
-</a>
-</div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
 
 <script>
 const map = L.map('map').setView([18.5204,73.8567], 12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19,
-attribution:'© OpenStreetMap'
+maxZoom:19
 }).addTo(map);
 
-const clusters = L.markerClusterGroup();
-map.addLayer(clusters);
+const searchBox = document.getElementById('searchBox');
+const suggestionBox = document.getElementById('suggestions');
 
-const POIS = [
-{id:1,type:'restaurant',name:'Top In Town (Deccan)',lat:18.5156,lng:73.8486,desc:'Popular Bengali dishes'},
-{id:2,type:'restaurant',name:'Aha! Baangali (Wakad)',lat:18.5973,lng:73.7706,desc:'Home-style Bengali food'},
-{id:3,type:'temple',name:'Pune Kali Bari (Khadki)',lat:18.5369,lng:73.8448,desc:'Kali temple'},
-{id:4,type:'visit',name:'Shaniwar Wada',lat:18.5196,lng:73.8553,desc:'Historic fort palace'},
-{id:5,type:'temple',name:'Dagdusheth Ganpati',lat:18.51638889,lng:73.85583333,desc:'Ganesh Temple'}
-];
-
-let markersMap={};
-
-function addPOIs(filter=''){
-clusters.clearLayers();
-markersMap={};
-
-POIS.forEach(p=>{
-if(!p.name.toLowerCase().includes(filter.toLowerCase())) return;
-
-const marker=L.marker([p.lat,p.lng])
-.bindPopup(`<b>${p.name}</b><br>${p.desc}
-<br><button onclick="startRoute(${p.lat},${p.lng})">
-Directions here</button>`);
-
-clusters.addLayer(marker);
-markersMap[p.name]=marker;
-});
-}
-
-addPOIs();
-
-/* Search */
 let control = null;
 let userMarker = null;
 let searchMarker = null;
+let watchId = null;
 
-/* SEARCH WITH AUTO ROUTING */
+/* SEARCH */
 searchBox.addEventListener('input', function () {
   const value = this.value.trim();
 
@@ -161,98 +108,101 @@ searchBox.addEventListener('input', function () {
     return;
   }
 
-  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`)
-    .then(res => res.json())
-    .then(data => {
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`,{
+    headers:{'Accept':'application/json'}
+  })
+  .then(res => res.json())
+  .then(data => {
 
-      suggestionBox.innerHTML = '';
+    suggestionBox.innerHTML = '';
 
-      data.slice(0,5).forEach(place => {
-        const div = document.createElement('div');
-        div.className = 'suggestion-item';
-        div.innerText = place.display_name;
+    data.slice(0,5).forEach(place => {
 
-        div.onclick = function () {
-          suggestionBox.style.display = 'none';
+      const div = document.createElement('div');
+      div.className = 'suggestion-item';
+      div.innerText = place.display_name;
 
-          const lat = parseFloat(place.lat);
-          const lon = parseFloat(place.lon);
+      div.onclick = function () {
 
-          map.setView([lat, lon], 14);
+        suggestionBox.style.display = 'none';
 
-          // Remove old search marker
-          if (searchMarker) map.removeLayer(searchMarker);
+        const lat = parseFloat(place.lat);
+        const lon = parseFloat(place.lon);
 
-          // Add new search marker
-          searchMarker = L.marker([lat, lon])
-            .addTo(map)
-            .bindPopup(`<b>${place.display_name}</b>`)
-            .openPopup();
+        map.setView([lat, lon], 14);
 
-          // 🔥 AUTO ROUTE FROM LIVE LOCATION
-          startLiveRoute(lat, lon);
-        };
+        if (searchMarker) map.removeLayer(searchMarker);
 
-        suggestionBox.appendChild(div);
-      });
+        searchMarker = L.marker([lat, lon])
+          .addTo(map)
+          .bindPopup(place.display_name)
+          .openPopup();
 
-      suggestionBox.style.display = 'block';
+        startLiveRoute(lat, lon);
+      };
+
+      suggestionBox.appendChild(div);
     });
+
+    suggestionBox.style.display = 'block';
+  });
 });
 
 
-/* LIVE LOCATION + ROUTING */
-function startLiveRoute(destLat, destLng) {
+/* LIVE ROUTING (FIXED) */
+function startLiveRoute(destLat, destLng){
 
   if (!navigator.geolocation) {
     alert("Enable location");
     return;
   }
 
-  navigator.geolocation.watchPosition(pos => {
+  // Stop previous tracking
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+  }
+
+  // Remove old route
+  if (control) {
+    map.removeControl(control);
+    control = null;
+  }
+
+  watchId = navigator.geolocation.watchPosition(pos => {
 
     const userLat = pos.coords.latitude;
     const userLng = pos.coords.longitude;
 
-    // Remove old user marker
     if (userMarker) map.removeLayer(userMarker);
 
-    // Add/update user marker
-    userMarker = L.marker([userLat, userLng], {
-      icon: L.icon({
-        iconUrl: 'https://cdn-icons-png.flaticon.com/512/64/64113.png',
-        iconSize: [25, 25]
-      })
-    }).addTo(map).bindPopup("You are here");
+    userMarker = L.marker([userLat, userLng])
+      .addTo(map)
+      .bindPopup("You are here");
 
-    // Create routing control
     if (!control) {
       control = L.Routing.control({
+        waypoints: [
+          L.latLng(userLat, userLng),
+          L.latLng(destLat, destLng)
+        ],
         router: L.Routing.osrmv1({
           serviceUrl: 'https://router.project-osrm.org/route/v1'
         }),
-        addWaypoints: false,
-        routeWhileDragging: false
+        addWaypoints:false,
+        draggableWaypoints:false
       }).addTo(map);
+    } else {
+      control.setWaypoints([
+        L.latLng(userLat, userLng),
+        L.latLng(destLat, destLng)
+      ]);
     }
 
-    // Update route LIVE
-    control.setWaypoints([
-      L.latLng(userLat, userLng),
-      L.latLng(destLat, destLng)
-    ]);
-
-  }, err => {
+  }, () => {
     alert("Location permission denied");
   }, {
-    enableHighAccuracy: true
+    enableHighAccuracy:true
   });
-}
-
-/* Contribution Toggle */
-function toggleContribution(){
-const box=document.getElementById('contributionBox');
-box.style.display=box.style.display==='block'?'none':'block';
 }
 </script>
 
