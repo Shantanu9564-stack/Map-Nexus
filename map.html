@@ -148,35 +148,49 @@ markersMap[p.name]=marker;
 addPOIs();
 
 /* Search */
-const searchBox=document.getElementById('searchBox');
-const suggestionBox=document.getElementById('suggestions');
+let control = null;
+let userMarker = null;
+let searchMarker = null;
 
+/* SEARCH WITH AUTO ROUTING */
 searchBox.addEventListener('input', function () {
-  const value = this.value;
+  const value = this.value.trim();
 
   if (value.length < 3) {
     suggestionBox.style.display = 'none';
     return;
   }
 
-  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${value}`)
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`)
     .then(res => res.json())
     .then(data => {
+
       suggestionBox.innerHTML = '';
 
-      data.forEach(place => {
+      data.slice(0,5).forEach(place => {
         const div = document.createElement('div');
         div.className = 'suggestion-item';
         div.innerText = place.display_name;
 
         div.onclick = function () {
           suggestionBox.style.display = 'none';
-          map.setView([place.lat, place.lon], 14);
 
-          const marker = L.marker([place.lat, place.lon])
+          const lat = parseFloat(place.lat);
+          const lon = parseFloat(place.lon);
+
+          map.setView([lat, lon], 14);
+
+          // Remove old search marker
+          if (searchMarker) map.removeLayer(searchMarker);
+
+          // Add new search marker
+          searchMarker = L.marker([lat, lon])
             .addTo(map)
-            .bindPopup(place.display_name)
+            .bindPopup(`<b>${place.display_name}</b>`)
             .openPopup();
+
+          // 🔥 AUTO ROUTE FROM LIVE LOCATION
+          startLiveRoute(lat, lon);
         };
 
         suggestionBox.appendChild(div);
@@ -186,26 +200,53 @@ searchBox.addEventListener('input', function () {
     });
 });
 
-/* Routing */
-let control=null;
-function startRoute(destLat,destLng){
-if(!navigator.geolocation){alert('Enable location');return;}
 
-navigator.geolocation.getCurrentPosition(pos=>{
-if(!control){
-control=L.Routing.control({
-router:L.Routing.osrmv1({
-serviceUrl:'https://router.project-osrm.org/route/v1'
-}),
-addWaypoints:false
-}).addTo(map);
-}
+/* LIVE LOCATION + ROUTING */
+function startLiveRoute(destLat, destLng) {
 
-control.setWaypoints([
-L.latLng(pos.coords.latitude,pos.coords.longitude),
-L.latLng(destLat,destLng)
-]);
-});
+  if (!navigator.geolocation) {
+    alert("Enable location");
+    return;
+  }
+
+  navigator.geolocation.watchPosition(pos => {
+
+    const userLat = pos.coords.latitude;
+    const userLng = pos.coords.longitude;
+
+    // Remove old user marker
+    if (userMarker) map.removeLayer(userMarker);
+
+    // Add/update user marker
+    userMarker = L.marker([userLat, userLng], {
+      icon: L.icon({
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/64/64113.png',
+        iconSize: [25, 25]
+      })
+    }).addTo(map).bindPopup("You are here");
+
+    // Create routing control
+    if (!control) {
+      control = L.Routing.control({
+        router: L.Routing.osrmv1({
+          serviceUrl: 'https://router.project-osrm.org/route/v1'
+        }),
+        addWaypoints: false,
+        routeWhileDragging: false
+      }).addTo(map);
+    }
+
+    // Update route LIVE
+    control.setWaypoints([
+      L.latLng(userLat, userLng),
+      L.latLng(destLat, destLng)
+    ]);
+
+  }, err => {
+    alert("Location permission denied");
+  }, {
+    enableHighAccuracy: true
+  });
 }
 
 /* Contribution Toggle */
