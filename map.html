@@ -151,31 +151,39 @@ addPOIs();
 const searchBox=document.getElementById('searchBox');
 const suggestionBox=document.getElementById('suggestions');
 
-searchBox.addEventListener('input',function(){
-const value=this.value.toLowerCase();
-suggestionBox.innerHTML='';
+searchBox.addEventListener('input', function () {
+  const value = this.value;
 
-if(value===''){suggestionBox.style.display='none';addPOIs('');return;}
+  if (value.length < 3) {
+    suggestionBox.style.display = 'none';
+    return;
+  }
 
-const filtered=POIS.filter(p=>p.name.toLowerCase().includes(value));
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${value}`)
+    .then(res => res.json())
+    .then(data => {
+      suggestionBox.innerHTML = '';
 
-filtered.forEach(place=>{
-const div=document.createElement('div');
-div.className='suggestion-item';
-div.innerText=place.name;
+      data.forEach(place => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        div.innerText = place.display_name;
 
-div.onclick=function(){
-searchBox.value=place.name;
-suggestionBox.style.display='none';
-addPOIs(place.name);
-map.setView([place.lat,place.lng],15);
-setTimeout(()=>{markersMap[place.name].openPopup();},300);
-};
+        div.onclick = function () {
+          suggestionBox.style.display = 'none';
+          map.setView([place.lat, place.lon], 14);
 
-suggestionBox.appendChild(div);
-});
+          const marker = L.marker([place.lat, place.lon])
+            .addTo(map)
+            .bindPopup(place.display_name)
+            .openPopup();
+        };
 
-suggestionBox.style.display='block';
+        suggestionBox.appendChild(div);
+      });
+
+      suggestionBox.style.display = 'block';
+    });
 });
 
 /* Routing */
