@@ -11,13 +11,11 @@
 <style>
 body { margin:0; font-family: Arial; }
 
-/* MAP */
 #map {
   height:100vh;
   width:100%;
 }
 
-/* TOP BAR */
 #topBar {
   position:absolute;
   top:0;
@@ -33,7 +31,6 @@ body { margin:0; font-family: Arial; }
   z-index:2000;
 }
 
-/* LOGO */
 #logoBox {
   display:flex;
   align-items:center;
@@ -46,7 +43,6 @@ body { margin:0; font-family: Arial; }
   border-radius:50%;
 }
 
-/* SEARCH */
 #searchContainer {
   position:relative;
 }
@@ -59,7 +55,6 @@ body { margin:0; font-family: Arial; }
   outline:none;
 }
 
-/* 🔥 FIXED SUGGESTION BOX */
 #suggestions {
   position:absolute;
   top:45px;
@@ -84,7 +79,6 @@ body { margin:0; font-family: Arial; }
   background:#f1f5f9;
 }
 
-/* 🔥 MOVE ZOOM BUTTON BELOW HEADER */
 .leaflet-top.leaflet-left {
   top:70px !important;
 }
@@ -93,10 +87,8 @@ body { margin:0; font-family: Arial; }
 
 <body>
 
-<!-- TOP BAR -->
 <div id="topBar">
 
-  <!-- LEFT -->
   <div id="logoBox">
     <img src="./logo.jpeg">
     <div>
@@ -105,7 +97,6 @@ body { margin:0; font-family: Arial; }
     </div>
   </div>
 
-  <!-- RIGHT -->
   <div id="searchContainer">
     <input type="text" id="searchBox" placeholder="Search any place..." />
     <div id="suggestions"></div>
@@ -133,60 +124,85 @@ let userMarker = null;
 let searchMarker = null;
 let watchId = null;
 
-/* SEARCH */
+/* 🔥 FIXED SEARCH (ONLY CHANGE HERE) */
+let searchTimeout;
+
 searchBox.addEventListener('input', function () {
   const value = this.value.trim();
 
+  clearTimeout(searchTimeout);
+
   if (value.length < 3) {
+    suggestionBox.innerHTML = '';
     suggestionBox.style.display = 'none';
     return;
   }
 
-  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`, {
-    headers:{'Accept':'application/json'}
-  })
-  .then(res => res.json())
-  .then(data => {
+  searchTimeout = setTimeout(() => {
 
-    suggestionBox.innerHTML = '';
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`, {
+      headers:{'Accept':'application/json'}
+    })
+    .then(res => res.json())
+    .then(data => {
 
-    data.slice(0,5).forEach(place => {
+      suggestionBox.innerHTML = '';
 
-      const div = document.createElement('div');
-      div.className = 'suggestion-item';
-     div.innerHTML = `
-  <b>${place.display_name.split(",")[0]}</b><br>
-  <small style="color:gray">${place.display_name}</small>
-`;
-
-      div.onclick = function () {
-
+      if (!data || data.length === 0) {
         suggestionBox.style.display = 'none';
+        return;
+      }
 
-        const lat = parseFloat(place.lat);
-        const lon = parseFloat(place.lon);
+      data.slice(0,5).forEach(place => {
 
-        map.setView([lat, lon], 14);
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
 
-        if (searchMarker) map.removeLayer(searchMarker);
+        div.innerHTML = `
+          <b>${place.display_name.split(",")[0]}</b><br>
+          <small style="color:gray">${place.display_name}</small>
+        `;
 
-        searchMarker = L.marker([lat, lon])
-          .addTo(map)
-          .bindPopup(place.display_name)
-          .openPopup();
+        div.onclick = function () {
 
-        startLiveRoute(lat, lon);
-      };
+          // 🔥 IMPORTANT FIX
+          searchBox.value = place.display_name;
+          suggestionBox.innerHTML = '';
+          suggestionBox.style.display = 'none';
 
-      suggestionBox.appendChild(div);
+          const lat = parseFloat(place.lat);
+          const lon = parseFloat(place.lon);
+
+          map.setView([lat, lon], 14);
+
+          if (searchMarker) map.removeLayer(searchMarker);
+
+          searchMarker = L.marker([lat, lon])
+            .addTo(map)
+            .bindPopup(place.display_name)
+            .openPopup();
+
+          startLiveRoute(lat, lon);
+        };
+
+        suggestionBox.appendChild(div);
+      });
+
+      suggestionBox.style.display = 'block';
     });
 
-    suggestionBox.style.display = 'block';
-  });
+  }, 400);
+});
+
+/* CLOSE DROPDOWN WHEN CLICK OUTSIDE */
+document.addEventListener('click', function(e){
+  if(!document.getElementById('searchContainer').contains(e.target)){
+    suggestionBox.style.display = 'none';
+  }
 });
 
 
-/* LIVE ROUTING */
+/* LIVE ROUTING (UNCHANGED) */
 function startLiveRoute(destLat, destLng){
 
   if (!navigator.geolocation) {
