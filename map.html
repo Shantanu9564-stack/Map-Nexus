@@ -6,23 +6,63 @@
 <title>Map Nexus</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 
 <style>
 body { margin:0; font-family: Arial; }
 
+/* MAP */
 #map {
-  margin-top:70px;
-  height:calc(100vh - 70px);
+  height:100vh;
   width:100%;
 }
 
+/* TOP BAR */
+#topBar {
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 15px;
+  background:#1e293b;
+  color:white;
+  z-index:1000;
+}
+
+/* LEFT SIDE (LOGO) */
+#logoBox {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+#logoBox img {
+  width:40px;
+  height:40px;
+  border-radius:50%;
+}
+
+/* RIGHT SIDE (SEARCH) */
+#searchContainer {
+  position:relative;
+}
+
+#searchBox {
+  padding:8px 12px;
+  border-radius:6px;
+  border:none;
+  width:250px;
+}
+
+/* SUGGESTIONS */
 #suggestions {
   position:absolute;
-  top:55px;
-  right:15px;
-  width:220px;
+  top:40px;
+  right:0;
+  width:250px;
   background:white;
   border-radius:6px;
   box-shadow:0 2px 6px rgba(0,0,0,0.2);
@@ -38,48 +78,32 @@ body { margin:0; font-family: Arial; }
   border-bottom:1px solid #eee;
 }
 .suggestion-item:hover { background:#f1f5f9; }
-
-#contributeBtn {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #e11d48;
-  color: white;
-  padding: 12px 18px;
-  border-radius: 30px;
-  cursor: pointer;
-  font-weight: bold;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-  z-index: 2000;
-}
-
-#contributionBox {
-  position: fixed;
-  bottom: 80px;
-  right: 20px;
-  background: white;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-  display: none;
-  z-index: 2000;
-  width: 250px;
-}
 </style>
 </head>
 
 <body>
 
-<div style="position:absolute;top:0;left:0;width:100%;background:#1e293b;color:white;
-z-index:1200;padding:10px 15px;display:flex;align-items:center;gap:12px;">
+<!-- TOP BAR -->
+<div id="topBar">
 
-<input type="text" id="searchBox"
-placeholder="Search any place in world..."
-style="padding:6px 10px;border-radius:6px;border:none;width:220px;" />
+  <!-- LEFT -->
+  <div id="logoBox">
+    <img src="./logo.jpeg">
+    <div>
+      <div style="font-weight:bold;">Map Nexus</div>
+      <div style="font-size:12px;opacity:0.7;">The World</div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div id="searchContainer">
+    <input type="text" id="searchBox" placeholder="Search any place..." />
+    <div id="suggestions"></div>
+  </div>
+
 </div>
 
 <div id="map"></div>
-<div id="suggestions"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
@@ -88,7 +112,7 @@ style="padding:6px 10px;border-radius:6px;border:none;width:220px;" />
 const map = L.map('map').setView([18.5204,73.8567], 12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
+  maxZoom:19
 }).addTo(map);
 
 const searchBox = document.getElementById('searchBox');
@@ -108,7 +132,7 @@ searchBox.addEventListener('input', function () {
     return;
   }
 
-  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`,{
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`, {
     headers:{'Accept':'application/json'}
   })
   .then(res => res.json())
@@ -149,7 +173,7 @@ searchBox.addEventListener('input', function () {
 });
 
 
-/* LIVE ROUTING (FIXED) */
+/* LIVE ROUTING */
 function startLiveRoute(destLat, destLng){
 
   if (!navigator.geolocation) {
@@ -157,12 +181,10 @@ function startLiveRoute(destLat, destLng){
     return;
   }
 
-  // Stop previous tracking
   if (watchId !== null) {
     navigator.geolocation.clearWatch(watchId);
   }
 
-  // Remove old route
   if (control) {
     map.removeControl(control);
     control = null;
