@@ -252,10 +252,7 @@ if (!userMarker) {
   userCircle.setRadius(pos.coords.accuracy);
 }
 
-    userMarker = L.marker([userLat, userLng])
-      .addTo(map)
-      .bindPopup("You are here");
-
+   
     if (!control) {
       control = L.Routing.control({
         waypoints: [
