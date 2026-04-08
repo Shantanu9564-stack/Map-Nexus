@@ -23,16 +23,17 @@ body { margin:0; font-family: Arial; }
   top:0;
   left:0;
   width:100%;
+  height:60px;
   display:flex;
   justify-content:space-between;
   align-items:center;
-  padding:10px 15px;
+  padding:0 15px;
   background:#1e293b;
   color:white;
-  z-index:1000;
+  z-index:2000;
 }
 
-/* LEFT SIDE (LOGO) */
+/* LOGO */
 #logoBox {
   display:flex;
   align-items:center;
@@ -45,7 +46,7 @@ body { margin:0; font-family: Arial; }
   border-radius:50%;
 }
 
-/* RIGHT SIDE (SEARCH) */
+/* SEARCH */
 #searchContainer {
   position:relative;
 }
@@ -54,30 +55,39 @@ body { margin:0; font-family: Arial; }
   padding:8px 12px;
   border-radius:6px;
   border:none;
-  width:250px;
+  width:260px;
+  outline:none;
 }
 
-/* SUGGESTIONS */
+/* 🔥 FIXED SUGGESTION BOX */
 #suggestions {
   position:absolute;
-  top:40px;
+  top:45px;
   right:0;
-  width:250px;
+  width:260px;
   background:white;
-  border-radius:6px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.2);
-  max-height:200px;
+  border-radius:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.25);
+  max-height:250px;
   overflow-y:auto;
   display:none;
-  z-index:1500;
+  z-index:3000;
 }
 
 .suggestion-item {
-  padding:8px;
+  padding:10px;
   cursor:pointer;
   border-bottom:1px solid #eee;
+  font-size:13px;
 }
-.suggestion-item:hover { background:#f1f5f9; }
+.suggestion-item:hover {
+  background:#f1f5f9;
+}
+
+/* 🔥 MOVE ZOOM BUTTON BELOW HEADER */
+.leaflet-top.leaflet-left {
+  top:70px !important;
+}
 </style>
 </head>
 
@@ -144,7 +154,10 @@ searchBox.addEventListener('input', function () {
 
       const div = document.createElement('div');
       div.className = 'suggestion-item';
-      div.innerText = place.display_name;
+     div.innerHTML = `
+  <b>${place.display_name.split(",")[0]}</b><br>
+  <small style="color:gray">${place.display_name}</small>
+`;
 
       div.onclick = function () {
 
