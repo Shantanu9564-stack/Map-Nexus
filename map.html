@@ -11,10 +11,7 @@
 <style>
 body { margin:0; font-family: Arial; }
 
-#map {
-  height:100vh;
-  width:100%;
-}
+#map { height:100vh; width:100%; }
 
 #topBar {
   position:absolute;
@@ -43,9 +40,7 @@ body { margin:0; font-family: Arial; }
   border-radius:50%;
 }
 
-#searchContainer {
-  position:relative;
-}
+#searchContainer { position:relative; }
 
 #searchBox {
   padding:8px 12px;
@@ -88,7 +83,6 @@ body { margin:0; font-family: Arial; }
 <body>
 
 <div id="topBar">
-
   <div id="logoBox">
     <img src="./logo.jpeg">
     <div>
@@ -101,7 +95,6 @@ body { margin:0; font-family: Arial; }
     <input type="text" id="searchBox" placeholder="Search any place..." />
     <div id="suggestions"></div>
   </div>
-
 </div>
 
 <div id="map"></div>
@@ -110,6 +103,7 @@ body { margin:0; font-family: Arial; }
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
 
 <script>
+
 const map = L.map('map').setView([18.5204,73.8567], 12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
@@ -125,7 +119,10 @@ let userCircle = null;
 let searchMarker = null;
 let watchId = null;
 
-/* 🔥 FIXED SEARCH (ONLY CHANGE HERE) */
+/* ✈️ FLIGHT STORAGE */
+let flightMarkers = [];
+
+/* 🔍 SEARCH */
 let searchTimeout;
 
 searchBox.addEventListener('input', function () {
@@ -141,34 +138,25 @@ searchBox.addEventListener('input', function () {
 
   searchTimeout = setTimeout(() => {
 
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`, {
-      headers:{'Accept':'application/json'}
-    })
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`)
     .then(res => res.json())
     .then(data => {
 
       suggestionBox.innerHTML = '';
 
-      if (!data || data.length === 0) {
-        suggestionBox.style.display = 'none';
-        return;
-      }
+      if (!data.length) return;
 
       data.slice(0,5).forEach(place => {
 
         const div = document.createElement('div');
         div.className = 'suggestion-item';
 
-        div.innerHTML = `
-          <b>${place.display_name.split(",")[0]}</b><br>
-          <small style="color:gray">${place.display_name}</small>
-        `;
+        div.innerHTML = `<b>${place.display_name.split(",")[0]}</b><br>
+        <small>${place.display_name}</small>`;
 
         div.onclick = function () {
 
-          // 🔥 IMPORTANT FIX
           searchBox.value = place.display_name;
-          suggestionBox.innerHTML = '';
           suggestionBox.style.display = 'none';
 
           const lat = parseFloat(place.lat);
@@ -195,90 +183,95 @@ searchBox.addEventListener('input', function () {
   }, 400);
 });
 
-/* CLOSE DROPDOWN WHEN CLICK OUTSIDE */
+/* CLICK OUTSIDE */
 document.addEventListener('click', function(e){
   if(!document.getElementById('searchContainer').contains(e.target)){
     suggestionBox.style.display = 'none';
   }
 });
 
-
-/* LIVE ROUTING (UNCHANGED) */
+/* 🧭 NAVIGATION */
 function startLiveRoute(destLat, destLng){
 
-  if (!navigator.geolocation) {
-    alert("Enable location");
-    return;
-  }
-
-  if (watchId !== null) {
-    navigator.geolocation.clearWatch(watchId);
-  }
-
-  if (control) {
-    map.removeControl(control);
-    control = null;
-  }
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  if (control) map.removeControl(control);
 
   watchId = navigator.geolocation.watchPosition(pos => {
 
     const userLat = pos.coords.latitude;
     const userLng = pos.coords.longitude;
 
-   if (!map.getBounds().contains([userLat, userLng])) {
-  map.panTo([userLat, userLng]);
-}
-   // 🔵 Google Maps style blue dot + accuracy circle
-
-if (!userMarker) {
-  userMarker = L.circleMarker([userLat, userLng], {
-    radius: 8,
-    color: "#fff",
-    weight: 2,
-    fillColor: "#007bff",
-    fillOpacity: 1
-  }).addTo(map);
-
-  // accuracy circle
-  userCircle = L.circle([userLat, userLng], {
-    radius: pos.coords.accuracy,
-    color: "#007bff",
-    fillColor: "#007bff",
-    fillOpacity: 0.15
-  }).addTo(map);
-
-} else {
-  userMarker.setLatLng([userLat, userLng]);
-  userCircle.setLatLng([userLat, userLng]);
-  userCircle.setRadius(pos.coords.accuracy);
-}
-
-   
-    if (!control) {
-      control = L.Routing.control({
-        waypoints: [
-          L.latLng(userLat, userLng),
-          L.latLng(destLat, destLng)
-        ],
-        router: L.Routing.osrmv1({
-          serviceUrl: 'https://router.project-osrm.org/route/v1'
-        }),
-        addWaypoints:false,
-        draggableWaypoints:false
+    if (!userMarker) {
+      userMarker = L.circleMarker([userLat, userLng], {
+        radius: 8,
+        color: "#fff",
+        weight: 2,
+        fillColor: "#007bff",
+        fillOpacity: 1
       }).addTo(map);
+
+      userCircle = L.circle([userLat, userLng], {
+        radius: pos.coords.accuracy,
+        color: "#007bff",
+        fillOpacity: 0.15
+      }).addTo(map);
+
     } else {
-      control.setWaypoints([
-        L.latLng(userLat, userLng),
-        L.latLng(destLat, destLng)
-      ]);
+      userMarker.setLatLng([userLat, userLng]);
+      userCircle.setLatLng([userLat, userLng]);
+      userCircle.setRadius(pos.coords.accuracy);
     }
 
-  }, () => {
-    alert("Location permission denied");
-  }, {
-    enableHighAccuracy:true
-  });
+    control = L.Routing.control({
+      waypoints: [
+        L.latLng(userLat, userLng),
+        L.latLng(destLat, destLng)
+      ],
+      addWaypoints:false,
+      draggableWaypoints:false
+    }).addTo(map);
+
+  }, null, { enableHighAccuracy:true });
 }
+
+/* ✈️ FLIGHT FUNCTION */
+function loadFlights() {
+
+  flightMarkers.forEach(m => map.removeLayer(m));
+  flightMarkers = [];
+
+  fetch("https://opensky-network.org/api/states/all")
+  .then(res => res.json())
+  .then(data => {
+
+    if (!data.states) return;
+
+    data.states.forEach(flight => {
+
+      let lat = flight[6];
+      let lon = flight[5];
+      let name = flight[1];
+
+      if (lat && lon) {
+
+        let marker = L.circleMarker([lat, lon], {
+          radius: 4,
+          color: "red"
+        })
+        .addTo(map)
+        .bindPopup("✈ " + (name || "Unknown"));
+
+        flightMarkers.push(marker);
+      }
+    });
+
+  })
+  .catch(err => console.log("Flight API blocked"));
+}
+
+/* 🔁 AUTO UPDATE */
+setInterval(loadFlights, 10000);
+
 </script>
 
 </body>
