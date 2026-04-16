@@ -1,144 +1,260 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>🌍 Global Flight Tracker</title>
+<title>Flight Tracker Pro</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-}
+body { margin:0; font-family:Arial; }
 
-#map {
-    height: 100vh;
-}
+#map { height:100vh; width:100%; }
 
 #topBar {
-    position: absolute;
-    top: 0;
-    width: 100%;
-    height: 55px;
-    background: #0f172a;
-    color: white;
-    display: flex;
-    align-items: center;
-    padding-left: 15px;
-    z-index: 1000;
-    font-size: 20px;
-    font-weight: bold;
+    position:absolute;
+    top:0;
+    width:100%;
+    height:60px;
+    background:#0f172a;
+    color:white;
+    display:flex;
+    align-items:center;
+    padding-left:15px;
+    z-index:2000;
+}
+
+/* 🔥 PRO FLIGHT PANEL */
+#flightPanel {
+    position:absolute;
+    bottom:0;
+    left:0;
+    width:100%;
+    background:#0f172a;
+    color:white;
+    padding:20px;
+    display:none;
+    z-index:3000;
+    border-top:3px solid #3b82f6;
+}
+
+/* HEADER */
+.panel-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.panel-header h2 {
+    margin:0;
+    color:#3b82f6;
+}
+
+/* ROUTE */
+.route {
+    display:flex;
+    justify-content:space-between;
+    margin-top:15px;
+    background:#1e293b;
+    padding:15px;
+    border-radius:10px;
+}
+
+.route div {
+    text-align:center;
+}
+
+.route span {
+    display:block;
+    font-size:12px;
+    color:#94a3b8;
+}
+
+/* DETAILS GRID */
+.details {
+    display:grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap:10px;
+    margin-top:15px;
+}
+
+.card {
+    background:#1e293b;
+    padding:10px;
+    border-radius:8px;
+}
+
+/* CLOSE */
+#closeBtn {
+    background:#ef4444;
+    border:none;
+    padding:6px 12px;
+    color:white;
+    cursor:pointer;
+    border-radius:5px;
 }
 </style>
 </head>
 
 <body>
 
-<div id="topBar">🌍 Live Global Flight Tracker</div>
+<div id="topBar">✈ Live Flights Above You</div>
+
 <div id="map"></div>
+
+<!-- 🔥 PRO PANEL -->
+<div id="flightPanel">
+
+    <div class="panel-header">
+        <h2 id="fp_name">Flight</h2>
+        <button id="closeBtn">Close</button>
+    </div>
+
+    <!-- ROUTE -->
+    <div class="route">
+        <div>
+            <b id="fp_origin">---</b>
+            <span>Origin</span>
+        </div>
+
+        <div>
+            ✈
+        </div>
+
+        <div>
+            <b id="fp_dest">---</b>
+            <span>Destination</span>
+        </div>
+    </div>
+
+    <!-- DETAILS -->
+    <div class="details">
+        <div class="card" id="fp_id"></div>
+        <div class="card" id="fp_alt"></div>
+        <div class="card" id="fp_speed"></div>
+        <div class="card" id="fp_aircraft"></div>
+    </div>
+
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-rotatedmarker/leaflet.rotatedMarker.js"></script>
 
 <script>
 
-let map = L.map('map').setView([20, 0], 3);
+let map = L.map('map').setView([20.5937, 78.9629], 5);
 
-// 🌍 MAP LAYER
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18
-}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-// ✈ PLANE ICON
+// ✈ ICON
 let planeIcon = L.icon({
     iconUrl: "https://img.icons8.com/fluency/48/airplane-take-off.png",
-    iconSize: [28, 28],
-    iconAnchor: [14, 14]
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
 });
 
-let markers = [];
+let flightMap = {};
+let userLat = null;
+let userLon = null;
 
-// 🔄 LOAD FLIGHTS
-async function loadFlights() {
-    try {
-        const res = await fetch("https://opensky-network.org/api/states/all");
-        const data = await res.json();
+// 📍 LOCATION
+navigator.geolocation.getCurrentPosition(pos => {
 
-        let flights = data.states;
+    userLat = pos.coords.latitude;
+    userLon = pos.coords.longitude;
 
-        if (!flights || flights.length === 0) {
-            console.log("No flights found");
-            return;
-        }
+    map.setView([userLat, userLon], 8);
 
-        // ✅ Only valid coordinates
-        let validFlights = flights.filter(f => f[5] !== null && f[6] !== null);
+    L.marker([userLat, userLon])
+        .addTo(map)
+        .bindPopup("📍 You are here");
 
-        updateMap(validFlights);
+    loadFlights();
+});
 
-    } catch (err) {
-        console.log("API Error:", err);
-    }
-}
+// ❌ CLOSE
+document.getElementById("closeBtn").onclick = function(){
+    document.getElementById("flightPanel").style.display = "none";
+};
 
-// 📍 UPDATE MAP
-function updateMap(flights) {
+// ✈ LOAD
+function loadFlights() {
 
-    // remove old markers
-    markers.forEach(m => map.removeLayer(m));
-    markers = [];
+    fetch("/flights")
+    .then(res => res.json())
+    .then(data => {
 
-    flights.forEach(f => {
+        if (!data.states) return;
 
-        let icao24 = f[0];
-        let callsign = f[1] ? f[1].trim() : "Unknown";
-        let country = f[2] || "Unknown";
+        data.states.forEach(flight => {
 
-        let lon = f[5];
-        let lat = f[6];
+            let id = flight[0];
+            let lat = flight[6];
+            let lon = flight[5];
+            let name = flight[1];
+            let altitude = flight[7];
+            let speed = flight[9];
+            let heading = flight[10] || 0;
 
-        let altitude = f[7];
-        let velocity = f[9];
-        let heading = f[10] || 0;
-        let onGround = f[8];
+            if (!lat || !lon) return;
 
-        let speedKmh = velocity ? (velocity * 3.6).toFixed(0) : "N/A";
-        let altitudeM = altitude ? altitude.toFixed(0) : "N/A";
+            let speedKmh = speed ? (speed * 3.6).toFixed(0) : "N/A";
 
-        let marker = L.marker([lat, lon], {
-            icon: planeIcon,
-            rotationAngle: heading
-        }).addTo(map);
+            if (!flightMap[id]) {
 
-        marker.bindPopup(`
-            <div style="min-width:220px">
-                <h3 style="margin:0 0 8px;">✈ ${callsign}</h3>
+                let marker = L.marker([lat, lon], {
+                    icon: planeIcon,
+                    rotationAngle: heading
+                }).addTo(map);
 
-                <b>ICAO24:</b> ${icao24}<br>
-                <b>Country:</b> ${country}<br><br>
+                // 🔥 CLICK PANEL
+                marker.on("click", function(){
 
-                <b>Latitude:</b> ${lat.toFixed(3)}<br>
-                <b>Longitude:</b> ${lon.toFixed(3)}<br><br>
+                    document.getElementById("flightPanel").style.display = "block";
 
-                <b>Altitude:</b> ${altitudeM} m<br>
-                <b>Speed:</b> ${speedKmh} km/h<br>
-                <b>Heading:</b> ${heading}°<br>
-                <b>Status:</b> ${onGround ? "On Ground" : "Flying"}<br><br>
+                    document.getElementById("fp_name").innerText =
+                        name || "Unknown Flight";
 
-                <b>Origin:</b> Not available (API limitation)<br>
-                <b>Destination:</b> Not available (API limitation)
-            </div>
-        `);
+                    document.getElementById("fp_id").innerText =
+                        "Flight ID: " + id;
 
-        markers.push(marker);
+                    document.getElementById("fp_alt").innerText =
+                        "Altitude: " + (altitude ? altitude.toFixed(0) + " m" : "N/A");
+
+                    document.getElementById("fp_speed").innerText =
+                        "Speed: " + speedKmh + " km/h";
+
+                    document.getElementById("fp_aircraft").innerText =
+                        "Aircraft: A320 (Demo)";
+
+                    // ⚠️ OpenSky doesn't give route → simulate
+                    document.getElementById("fp_origin").innerText = "IND";
+                    document.getElementById("fp_dest").innerText = "UNKNOWN";
+
+                });
+
+                flightMap[id] = {
+                    marker: marker,
+                    lat: lat,
+                    lon: lon
+                };
+
+            } else {
+
+                let obj = flightMap[id];
+
+                obj.marker.setLatLng([lat, lon]);
+                obj.marker.setRotationAngle(heading);
+
+                obj.lat = lat;
+                obj.lon = lon;
+            }
+
+        });
+
     });
 }
 
-// 🚀 START
-loadFlights();
+// 🔄 UPDATE
 setInterval(loadFlights, 10000);
 
 </script>
