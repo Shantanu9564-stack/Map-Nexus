@@ -1,275 +1,144 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Map Nexus</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<title>🌍 Global Flight Tracker</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body { margin:0; font-family: Arial; }
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
 
-#map { height:100vh; width:100%; }
+#map {
+    height: 100vh;
+}
 
 #topBar {
-  position:absolute;
-  top:0;
-  left:0;
-  width:100%;
-  height:60px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:0 15px;
-  background:#1e293b;
-  color:white;
-  z-index:2000;
-}
-
-#logoBox {
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-#logoBox img {
-  width:40px;
-  height:40px;
-  border-radius:50%;
-}
-
-#searchContainer { position:relative; }
-
-#searchBox {
-  padding:8px 12px;
-  border-radius:6px;
-  border:none;
-  width:260px;
-  outline:none;
-}
-
-#suggestions {
-  position:absolute;
-  top:45px;
-  right:0;
-  width:260px;
-  background:white;
-  border-radius:8px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.25);
-  max-height:250px;
-  overflow-y:auto;
-  display:none;
-  z-index:3000;
-}
-
-.suggestion-item {
-  padding:10px;
-  cursor:pointer;
-  border-bottom:1px solid #eee;
-  font-size:13px;
-}
-.suggestion-item:hover {
-  background:#f1f5f9;
-}
-
-.leaflet-top.leaflet-left {
-  top:70px !important;
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 55px;
+    background: #0f172a;
+    color: white;
+    display: flex;
+    align-items: center;
+    padding-left: 15px;
+    z-index: 1000;
+    font-size: 20px;
+    font-weight: bold;
 }
 </style>
 </head>
 
 <body>
 
-<div id="topBar">
-  <div id="logoBox">
-    <img src="./logo.jpeg">
-    <div>
-      <div style="font-weight:bold;">Map Nexus</div>
-      <div style="font-size:12px;opacity:0.7;">The World</div>
-    </div>
-  </div>
-
-  <div id="searchContainer">
-    <input type="text" id="searchBox" placeholder="Search any place..." />
-    <div id="suggestions"></div>
-  </div>
-</div>
-
+<div id="topBar">🌍 Live Global Flight Tracker</div>
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+<script src="https://unpkg.com/leaflet-rotatedmarker/leaflet.rotatedMarker.js"></script>
 
 <script>
 
-const map = L.map('map').setView([18.5204,73.8567], 12);
+let map = L.map('map').setView([20, 0], 3);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom:19
+// 🌍 MAP LAYER
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18
 }).addTo(map);
 
-const searchBox = document.getElementById('searchBox');
-const suggestionBox = document.getElementById('suggestions');
-
-let control = null;
-let userMarker = null;
-let userCircle = null;
-let searchMarker = null;
-let watchId = null;
-
-/* ✈️ FLIGHT STORAGE */
-let flightMarkers = [];
-
-/* 🔍 SEARCH */
-let searchTimeout;
-
-searchBox.addEventListener('input', function () {
-  const value = this.value.trim();
-
-  clearTimeout(searchTimeout);
-
-  if (value.length < 3) {
-    suggestionBox.innerHTML = '';
-    suggestionBox.style.display = 'none';
-    return;
-  }
-
-  searchTimeout = setTimeout(() => {
-
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`)
-    .then(res => res.json())
-    .then(data => {
-
-      suggestionBox.innerHTML = '';
-
-      if (!data.length) return;
-
-      data.slice(0,5).forEach(place => {
-
-        const div = document.createElement('div');
-        div.className = 'suggestion-item';
-
-        div.innerHTML = `<b>${place.display_name.split(",")[0]}</b><br>
-        <small>${place.display_name}</small>`;
-
-        div.onclick = function () {
-
-          searchBox.value = place.display_name;
-          suggestionBox.style.display = 'none';
-
-          const lat = parseFloat(place.lat);
-          const lon = parseFloat(place.lon);
-
-          map.setView([lat, lon], 14);
-
-          if (searchMarker) map.removeLayer(searchMarker);
-
-          searchMarker = L.marker([lat, lon])
-            .addTo(map)
-            .bindPopup(place.display_name)
-            .openPopup();
-
-          startLiveRoute(lat, lon);
-        };
-
-        suggestionBox.appendChild(div);
-      });
-
-      suggestionBox.style.display = 'block';
-    });
-
-  }, 400);
+// ✈ PLANE ICON
+let planeIcon = L.icon({
+    iconUrl: "https://img.icons8.com/fluency/48/airplane-take-off.png",
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
 });
 
-/* CLICK OUTSIDE */
-document.addEventListener('click', function(e){
-  if(!document.getElementById('searchContainer').contains(e.target)){
-    suggestionBox.style.display = 'none';
-  }
-});
+let markers = [];
 
-/* 🧭 NAVIGATION */
-function startLiveRoute(destLat, destLng){
+// 🔄 LOAD FLIGHTS
+async function loadFlights() {
+    try {
+        const res = await fetch("https://opensky-network.org/api/states/all");
+        const data = await res.json();
 
-  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-  if (control) map.removeControl(control);
+        let flights = data.states;
 
-  watchId = navigator.geolocation.watchPosition(pos => {
+        if (!flights || flights.length === 0) {
+            console.log("No flights found");
+            return;
+        }
 
-    const userLat = pos.coords.latitude;
-    const userLng = pos.coords.longitude;
+        // ✅ Only valid coordinates
+        let validFlights = flights.filter(f => f[5] !== null && f[6] !== null);
 
-    if (!userMarker) {
-      userMarker = L.circleMarker([userLat, userLng], {
-        radius: 8,
-        color: "#fff",
-        weight: 2,
-        fillColor: "#007bff",
-        fillOpacity: 1
-      }).addTo(map);
+        updateMap(validFlights);
 
-      userCircle = L.circle([userLat, userLng], {
-        radius: pos.coords.accuracy,
-        color: "#007bff",
-        fillOpacity: 0.15
-      }).addTo(map);
-
-    } else {
-      userMarker.setLatLng([userLat, userLng]);
-      userCircle.setLatLng([userLat, userLng]);
-      userCircle.setRadius(pos.coords.accuracy);
+    } catch (err) {
+        console.log("API Error:", err);
     }
-
-    control = L.Routing.control({
-      waypoints: [
-        L.latLng(userLat, userLng),
-        L.latLng(destLat, destLng)
-      ],
-      addWaypoints:false,
-      draggableWaypoints:false
-    }).addTo(map);
-
-  }, null, { enableHighAccuracy:true });
 }
 
-/* ✈️ FLIGHT FUNCTION */
-function loadFlights() {
+// 📍 UPDATE MAP
+function updateMap(flights) {
 
-  flightMarkers.forEach(m => map.removeLayer(m));
-  flightMarkers = [];
+    // remove old markers
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
 
-  fetch("https://opensky-network.org/api/states/all")
-  .then(res => res.json())
-  .then(data => {
+    flights.forEach(f => {
 
-    if (!data.states) return;
+        let icao24 = f[0];
+        let callsign = f[1] ? f[1].trim() : "Unknown";
+        let country = f[2] || "Unknown";
 
-    data.states.forEach(flight => {
+        let lon = f[5];
+        let lat = f[6];
 
-      let lat = flight[6];
-      let lon = flight[5];
-      let name = flight[1];
+        let altitude = f[7];
+        let velocity = f[9];
+        let heading = f[10] || 0;
+        let onGround = f[8];
 
-      if (lat && lon) {
+        let speedKmh = velocity ? (velocity * 3.6).toFixed(0) : "N/A";
+        let altitudeM = altitude ? altitude.toFixed(0) : "N/A";
 
-        let marker = L.circleMarker([lat, lon], {
-          radius: 4,
-          color: "red"
-        })
-        .addTo(map)
-        .bindPopup("✈ " + (name || "Unknown"));
+        let marker = L.marker([lat, lon], {
+            icon: planeIcon,
+            rotationAngle: heading
+        }).addTo(map);
 
-        flightMarkers.push(marker);
-      }
+        marker.bindPopup(`
+            <div style="min-width:220px">
+                <h3 style="margin:0 0 8px;">✈ ${callsign}</h3>
+
+                <b>ICAO24:</b> ${icao24}<br>
+                <b>Country:</b> ${country}<br><br>
+
+                <b>Latitude:</b> ${lat.toFixed(3)}<br>
+                <b>Longitude:</b> ${lon.toFixed(3)}<br><br>
+
+                <b>Altitude:</b> ${altitudeM} m<br>
+                <b>Speed:</b> ${speedKmh} km/h<br>
+                <b>Heading:</b> ${heading}°<br>
+                <b>Status:</b> ${onGround ? "On Ground" : "Flying"}<br><br>
+
+                <b>Origin:</b> Not available (API limitation)<br>
+                <b>Destination:</b> Not available (API limitation)
+            </div>
+        `);
+
+        markers.push(marker);
     });
-
-  })
-  .catch(err => console.log("Flight API blocked"));
 }
 
-/* 🔁 AUTO UPDATE */
+// 🚀 START
+loadFlights();
 setInterval(loadFlights, 10000);
 
 </script>
