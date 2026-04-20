@@ -1,8 +1,10 @@
 <script>
+document.addEventListener("DOMContentLoaded", function(){
+
 const map = L.map('map').setView([18.5204,73.8567], 12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
+    maxZoom:19
 }).addTo(map);
 
 let userMarker, accuracyCircle;
@@ -10,7 +12,8 @@ let control = null;
 let destination = null;
 let searchMarker = null;
 
-/* 🔵 LIVE LOCATION TRACKING */
+/* 🔵 LOCATION TRACKING */
+if(navigator.geolocation){
 navigator.geolocation.watchPosition(position => {
 
     const lat = position.coords.latitude;
@@ -37,7 +40,6 @@ navigator.geolocation.watchPosition(position => {
 
     map.panTo([lat, lng]);
 
-    // 🔄 AUTO ROUTE UPDATE
     if(control && destination){
         control.setWaypoints([
             L.latLng(lat, lng),
@@ -46,8 +48,9 @@ navigator.geolocation.watchPosition(position => {
     }
 
 }, { enableHighAccuracy: true });
+}
 
-/* 🌍 GLOBAL SEARCH (FIXED) */
+/* SEARCH */
 const searchBox=document.getElementById('searchBox');
 const suggestionBox=document.getElementById('suggestions');
 
@@ -69,7 +72,7 @@ searchBox.addEventListener('input', async function(){
 
         suggestionBox.innerHTML='';
 
-        if(!data.features || data.features.length === 0){
+        if(!data.features){
             suggestionBox.style.display='none';
             return;
         }
@@ -80,7 +83,7 @@ searchBox.addEventListener('input', async function(){
             const lat = coords[1];
             const lon = coords[0];
 
-            const name = place.properties.name || place.properties.city || "Unknown place";
+            const name = place.properties.name || place.properties.city || "Unknown";
 
             const div=document.createElement('div');
             div.className='suggestion-item';
@@ -92,7 +95,6 @@ searchBox.addEventListener('input', async function(){
 
                 map.setView([lat, lon], 15);
 
-                // remove old marker
                 if(searchMarker){
                     map.removeLayer(searchMarker);
                 }
@@ -114,11 +116,10 @@ searchBox.addEventListener('input', async function(){
 
     } catch(err){
         console.error("Search error:", err);
-        suggestionBox.style.display='none';
     }
 });
 
-/* 🚗 ROUTING */
+/* ROUTING */
 function startRoute(destLat,destLng){
 
     const mode = document.getElementById("mode").value;
@@ -142,4 +143,6 @@ function startRoute(destLat,destLng){
         ]);
     });
 }
+
+});
 </script>
