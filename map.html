@@ -1,3 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Map Nexus</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<!-- Routing CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
+
+<style>
+body { margin:0; font-family: Arial; }
+
+#map {
+  margin-top:70px;
+  height:calc(100vh - 70px);
+  width:100%;
+}
+
+#suggestions {
+  position:absolute;
+  top:55px;
+  right:15px;
+  width:300px;
+  background:white;
+  border-radius:6px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.2);
+  max-height:250px;
+  overflow-y:auto;
+  display:none;
+  z-index:1500;
+}
+
+.suggestion-item {
+  padding:8px;
+  cursor:pointer;
+  border-bottom:1px solid #eee;
+}
+.suggestion-item:hover { background:#f1f5f9; }
+
+#mode {
+  margin-left:10px;
+  padding:5px;
+  border-radius:6px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div style="position:absolute;top:0;left:0;width:100%;background:#1e293b;color:white;
+z-index:1200;padding:10px 15px;display:flex;align-items:center;gap:12px;">
+
+<img src="./logo.png" style="width:40px;height:40px;border-radius:50%;border:2px solid white;" />
+
+<div style="flex:1">
+<div style="font-size:18px;font-weight:bold;">Map Nexus</div>
+<div style="font-size:12px;opacity:0.8">The World</div>
+</div>
+
+<input type="text" id="searchBox" placeholder="Search any place..." />
+
+<select id="mode">
+<option value="driving">🚗 Car</option>
+<option value="cycling">🚴 Bike</option>
+<option value="walking">🚶 Walk</option>
+</select>
+
+</div>
+
+<div id="map"></div>
+<div id="suggestions"></div>
+
+<!-- Leaflet JS (IMPORTANT: load BEFORE your script) -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Routing JS -->
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+
 <script>
 document.addEventListener("DOMContentLoaded", function(){
 
@@ -12,7 +95,7 @@ let control = null;
 let destination = null;
 let searchMarker = null;
 
-/* 🔵 LOCATION TRACKING */
+/* 🔵 LIVE LOCATION */
 if(navigator.geolocation){
 navigator.geolocation.watchPosition(position => {
 
@@ -50,7 +133,7 @@ navigator.geolocation.watchPosition(position => {
 }, { enableHighAccuracy: true });
 }
 
-/* SEARCH */
+/* 🌍 SEARCH (Photon API) */
 const searchBox=document.getElementById('searchBox');
 const suggestionBox=document.getElementById('suggestions');
 
@@ -72,7 +155,7 @@ searchBox.addEventListener('input', async function(){
 
         suggestionBox.innerHTML='';
 
-        if(!data.features){
+        if(!data.features || data.features.length === 0){
             suggestionBox.style.display='none';
             return;
         }
@@ -83,7 +166,7 @@ searchBox.addEventListener('input', async function(){
             const lat = coords[1];
             const lon = coords[0];
 
-            const name = place.properties.name || place.properties.city || "Unknown";
+            const name = place.properties.name || place.properties.city || "Unknown place";
 
             const div=document.createElement('div');
             div.className='suggestion-item';
@@ -119,7 +202,7 @@ searchBox.addEventListener('input', async function(){
     }
 });
 
-/* ROUTING */
+/* 🚗 ROUTING */
 function startRoute(destLat,destLng){
 
     const mode = document.getElementById("mode").value;
@@ -146,3 +229,6 @@ function startRoute(destLat,destLng){
 
 });
 </script>
+
+</body>
+</html>
