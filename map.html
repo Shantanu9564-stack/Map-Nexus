@@ -5,10 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Map Nexus</title>
 
-<!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-<!-- Routing CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
 
 <style>
@@ -17,57 +14,51 @@ body { margin:0; font-family: Arial; }
 #map {
   margin-top:70px;
   height:calc(100vh - 70px);
-  width:100%;
 }
 
 #suggestions {
   position:absolute;
-  top:55px;
+  top:60px;
   right:15px;
-  width:300px;
+  width:320px;
   background:white;
   border-radius:6px;
   box-shadow:0 2px 6px rgba(0,0,0,0.2);
   max-height:250px;
   overflow-y:auto;
   display:none;
-  z-index:1500;
+  z-index:9999;
 }
 
 .suggestion-item {
-  padding:8px;
+  padding:10px;
   cursor:pointer;
   border-bottom:1px solid #eee;
 }
 .suggestion-item:hover { background:#f1f5f9; }
 
-#mode {
-  margin-left:10px;
-  padding:5px;
-  border-radius:6px;
-}
 </style>
 </head>
 
 <body>
 
 <!-- HEADER -->
-<div style="position:absolute;top:0;left:0;width:100%;background:#1e293b;color:white;
-z-index:1200;padding:10px 15px;display:flex;align-items:center;gap:12px;">
+<div style="position:absolute;top:0;width:100%;background:#1e293b;color:white;
+z-index:1200;padding:10px;display:flex;gap:10px;align-items:center;">
 
 <img src="./logo.png" style="width:40px;height:40px;border-radius:50%;border:2px solid white;" />
 
 <div style="flex:1">
-<div style="font-size:18px;font-weight:bold;">Map Nexus</div>
-<div style="font-size:12px;opacity:0.8">The World</div>
+<b>Map Nexus</b><br>
+<small>The World</small>
 </div>
 
-<input type="text" id="searchBox" placeholder="Search any place..." />
+<input id="searchBox" placeholder="Search location..." />
 
 <select id="mode">
-<option value="driving">🚗 Car</option>
-<option value="cycling">🚴 Bike</option>
-<option value="walking">🚶 Walk</option>
+<option value="driving">🚗</option>
+<option value="cycling">🚴</option>
+<option value="walking">🚶</option>
 </select>
 
 </div>
@@ -75,10 +66,7 @@ z-index:1200;padding:10px 15px;display:flex;align-items:center;gap:12px;">
 <div id="map"></div>
 <div id="suggestions"></div>
 
-<!-- Leaflet JS (IMPORTANT: load BEFORE your script) -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- Routing JS -->
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
 
 <script>
@@ -86,117 +74,100 @@ document.addEventListener("DOMContentLoaded", function(){
 
 const map = L.map('map').setView([18.5204,73.8567], 12);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19
-}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let userMarker, accuracyCircle;
 let control = null;
 let destination = null;
 let searchMarker = null;
 
-/* 🔵 LIVE LOCATION */
-if(navigator.geolocation){
-navigator.geolocation.watchPosition(position => {
+/* 🔵 GOOGLE-LIKE LIVE LOCATION */
+navigator.geolocation.watchPosition(pos => {
 
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
-    const accuracy = position.coords.accuracy;
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    const acc = pos.coords.accuracy;
 
     if(!userMarker){
-        userMarker = L.circleMarker([lat, lng], {
-            radius: 8,
-            color: 'white',
-            fillColor: '#1E90FF',
-            fillOpacity: 1
+        userMarker = L.circleMarker([lat,lng],{
+            radius:8,
+            color:"#fff",
+            fillColor:"#1E90FF",
+            fillOpacity:1
         }).addTo(map);
 
-        accuracyCircle = L.circle([lat, lng], {
-            radius: accuracy,
-            color: '#1E90FF',
-            fillOpacity: 0.2
+        accuracyCircle = L.circle([lat,lng],{
+            radius:acc,
+            color:"#1E90FF",
+            fillOpacity:0.15
         }).addTo(map);
+
     } else {
-        userMarker.setLatLng([lat, lng]);
-        accuracyCircle.setLatLng([lat, lng]).setRadius(accuracy);
+        userMarker.setLatLng([lat,lng]);
+        accuracyCircle.setLatLng([lat,lng]).setRadius(acc);
     }
 
-    map.panTo([lat, lng]);
+    map.panTo([lat,lng], {animate:true});
 
     if(control && destination){
         control.setWaypoints([
-            L.latLng(lat, lng),
-            L.latLng(destination.lat, destination.lng)
+            L.latLng(lat,lng),
+            L.latLng(destination.lat,destination.lng)
         ]);
     }
 
-}, { enableHighAccuracy: true });
-}
+},{enableHighAccuracy:true});
 
-/* 🌍 SEARCH (Photon API) */
-const searchBox=document.getElementById('searchBox');
-const suggestionBox=document.getElementById('suggestions');
+/* 🌍 SEARCH (STABLE VERSION) */
+const searchBox = document.getElementById('searchBox');
+const suggestionBox = document.getElementById('suggestions');
 
 searchBox.addEventListener('input', async function(){
 
     const query = this.value.trim();
 
-    if(query.length < 3){
+    if(query.length < 2){
         suggestionBox.style.display='none';
         return;
     }
 
     try{
-        const res = await fetch(
-            `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}`
-        );
-
+        const res = await fetch(`https://photon.komoot.io/api/?q=${query}`);
         const data = await res.json();
 
-        console.log(data); // DEBUG
+        suggestionBox.innerHTML = '';
 
-        suggestionBox.innerHTML='';
-
-        if(!data.features || data.features.length === 0){
-            suggestionBox.style.display='none';
+        if(!data.features.length){
+            suggestionBox.innerHTML = "<div class='suggestion-item'>No result</div>";
+            suggestionBox.style.display='block';
             return;
         }
 
-        data.features.slice(0,5).forEach(place=>{
+        data.features.slice(0,5).forEach(p=>{
 
-            const coords = place.geometry.coordinates;
-            const lat = coords[1];
-            const lon = coords[0];
+            const lat = p.geometry.coordinates[1];
+            const lng = p.geometry.coordinates[0];
 
-            const props = place.properties;
+            const name = Object.values(p.properties)
+                .filter(v=>typeof v==="string")
+                .join(", ");
 
-            const name = [
-                props.name,
-                props.city,
-                props.state,
-                props.country
-            ].filter(Boolean).join(", ");
+            const div = document.createElement('div');
+            div.className = "suggestion-item";
+            div.innerText = name;
 
-            const div=document.createElement('div');
-            div.className='suggestion-item';
-            div.innerText=name;
+            div.onclick = () => {
 
-            div.onclick=function(){
+                destination = {lat,lng};
 
-                destination = {lat, lng: lon};
+                map.setView([lat,lng],15);
 
-                map.setView([lat, lon], 15);
+                if(searchMarker) map.removeLayer(searchMarker);
 
-                if(searchMarker){
-                    map.removeLayer(searchMarker);
-                }
+                searchMarker = L.marker([lat,lng]).addTo(map)
+                    .bindPopup(name).openPopup();
 
-                searchMarker = L.marker([lat, lon])
-                  .addTo(map)
-                  .bindPopup(name)
-                  .openPopup();
-
-                startRoute(lat, lon);
+                startRoute(lat,lng);
 
                 suggestionBox.style.display='none';
             };
@@ -206,9 +177,11 @@ searchBox.addEventListener('input', async function(){
 
         suggestionBox.style.display='block';
 
-    } catch(err){
-        console.error("Search error:", err);
+    }catch(e){
+        suggestionBox.innerHTML="<div class='suggestion-item'>Error</div>";
+        suggestionBox.style.display='block';
     }
+
 });
 
 /* 🚗 ROUTING */
