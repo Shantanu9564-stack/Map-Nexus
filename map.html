@@ -70,18 +70,16 @@ z-index:1200;padding:10px;display:flex;gap:10px;align-items:center;">
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
 
 <script>
-document.addEventListener("DOMContentLoaded", function(){
+const map = L.map('map').setView([22.9734,78.6569], 5); // India center
 
-const map = L.map('map').setView([18.5204,73.8567], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+maxZoom:19
+}).addTo(map);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
+/* 🔵 LIVE LOCATION (BLUE DOT) */
 let userMarker, accuracyCircle;
-let control = null;
-let destination = null;
-let searchMarker = null;
 
-/* 🔵 GOOGLE-LIKE LIVE LOCATION */
+if(navigator.geolocation){
 navigator.geolocation.watchPosition(pos => {
 
     const lat = pos.coords.latitude;
@@ -91,83 +89,86 @@ navigator.geolocation.watchPosition(pos => {
     if(!userMarker){
         userMarker = L.circleMarker([lat,lng],{
             radius:8,
-            color:"#fff",
-            fillColor:"#1E90FF",
+            color:'white',
+            fillColor:'#1E90FF',
             fillOpacity:1
         }).addTo(map);
 
         accuracyCircle = L.circle([lat,lng],{
             radius:acc,
-            color:"#1E90FF",
-            fillOpacity:0.15
+            color:'#1E90FF',
+            fillOpacity:0.2
         }).addTo(map);
-
     } else {
         userMarker.setLatLng([lat,lng]);
         accuracyCircle.setLatLng([lat,lng]).setRadius(acc);
     }
 
-    map.panTo([lat,lng], {animate:true});
+}, {enableHighAccuracy:true});
+}
 
-    if(control && destination){
-        control.setWaypoints([
-            L.latLng(lat,lng),
-            L.latLng(destination.lat,destination.lng)
-        ]);
-    }
+/* 🌍 GLOBAL INDIA SEARCH */
+const searchBox=document.getElementById('searchBox');
+const suggestionBox=document.getElementById('suggestions');
 
-},{enableHighAccuracy:true});
-
-/* 🌍 SEARCH (STABLE VERSION) */
-const searchBox = document.getElementById('searchBox');
-const suggestionBox = document.getElementById('suggestions');
+let searchMarker=null;
 
 searchBox.addEventListener('input', async function(){
 
-    const query = this.value.trim();
+    const query=this.value.trim();
 
-    if(query.length < 2){
+    if(query.length<3){
         suggestionBox.style.display='none';
         return;
     }
 
     try{
-        const res = await fetch(`https://photon.komoot.io/api/?q=${query}`);
-        const data = await res.json();
+        const res=await fetch(
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`
+        );
 
-        suggestionBox.innerHTML = '';
+        const data=await res.json();
 
-        if(!data.features.length){
-            suggestionBox.innerHTML = "<div class='suggestion-item'>No result</div>";
-            suggestionBox.style.display='block';
+        suggestionBox.innerHTML='';
+
+        if(!data.features || data.features.length===0){
+            suggestionBox.style.display='none';
             return;
         }
 
-        data.features.slice(0,5).forEach(p=>{
+        data.features.forEach(place=>{
 
-            const lat = p.geometry.coordinates[1];
-            const lng = p.geometry.coordinates[0];
+            const coords=place.geometry.coordinates;
+            const lat=coords[1];
+            const lon=coords[0];
 
-            const name = Object.values(p.properties)
-                .filter(v=>typeof v==="string")
-                .join(", ");
+            const props=place.properties;
 
-            const div = document.createElement('div');
-            div.className = "suggestion-item";
-            div.innerText = name;
+            // ✅ Force India filtering
+            if(props.country !== "India") return;
 
-            div.onclick = () => {
+            const name=[
+                props.name,
+                props.city,
+                props.state
+            ].filter(Boolean).join(", ");
 
-                destination = {lat,lng};
+            const div=document.createElement('div');
+            div.className='suggestion-item';
+            div.innerText=name;
 
-                map.setView([lat,lng],15);
+            div.onclick=function(){
 
-                if(searchMarker) map.removeLayer(searchMarker);
+                map.setView([lat,lon],15);
 
-                searchMarker = L.marker([lat,lng]).addTo(map)
-                    .bindPopup(name).openPopup();
+                if(searchMarker){
+                    map.removeLayer(searchMarker);
+                }
 
-                startRoute(lat,lng);
+                searchMarker=L.marker([lat,lon])
+                .addTo(map)
+                .bindPopup(name)
+                .openPopup();
 
                 suggestionBox.style.display='none';
             };
@@ -177,40 +178,10 @@ searchBox.addEventListener('input', async function(){
 
         suggestionBox.style.display='block';
 
-    }catch(e){
-        suggestionBox.innerHTML="<div class='suggestion-item'>Error</div>";
-        suggestionBox.style.display='block';
+    } catch(err){
+        console.error(err);
     }
-
-});
-
-/* 🚗 ROUTING */
-function startRoute(destLat,destLng){
-
-    const mode = document.getElementById("mode").value;
-
-    navigator.geolocation.getCurrentPosition(pos=>{
-
-        if(control) map.removeControl(control);
-
-        control = L.Routing.control({
-            router: L.Routing.osrmv1({
-                serviceUrl:'https://router.project-osrm.org/route/v1',
-                profile: mode
-            }),
-            showAlternatives:true,
-            addWaypoints:false
-        }).addTo(map);
-
-        control.setWaypoints([
-            L.latLng(pos.coords.latitude,pos.coords.longitude),
-            L.latLng(destLat,destLng)
-        ]);
-    });
-}
-
 });
 </script>
-
 </body>
 </html>
