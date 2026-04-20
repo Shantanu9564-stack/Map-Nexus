@@ -153,6 +153,8 @@ searchBox.addEventListener('input', async function(){
 
         const data = await res.json();
 
+        console.log(data); // DEBUG
+
         suggestionBox.innerHTML='';
 
         if(!data.features || data.features.length === 0){
@@ -166,7 +168,14 @@ searchBox.addEventListener('input', async function(){
             const lat = coords[1];
             const lon = coords[0];
 
-            const name = place.properties.name || place.properties.city || "Unknown place";
+            const props = place.properties;
+
+            const name = [
+                props.name,
+                props.city,
+                props.state,
+                props.country
+            ].filter(Boolean).join(", ");
 
             const div=document.createElement('div');
             div.className='suggestion-item';
