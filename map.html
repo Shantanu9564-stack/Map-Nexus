@@ -1,133 +1,156 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Live Map with Routing</title>
-
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-
-    <style>
-        #map {
-            height: 100vh;
-            width: 100%;
-        }
-        .search-box {
-            position: absolute;
-            top: 10px;
-            left: 50px;
-            z-index: 1000;
-            background: white;
-            padding: 10px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="search-box">
-    <input type="text" id="search" placeholder="Search any place..." />
-    <button onclick="searchPlace()">Search</button>
-</div>
-
-<div id="map"></div>
-
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
 <script>
 
-let map = L.map('map').setView([20, 0], 2);
-let userLat, userLng;
-let routeLayer;
+const map = L.map('map').setView([20, 0], 2);
 
-// 🌍 Base map
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+maxZoom:19,
+attribution:'© OpenStreetMap'
 }).addTo(map);
 
-// 📍 Get Live Location
-navigator.geolocation.getCurrentPosition(position => {
-    userLat = position.coords.latitude;
-    userLng = position.coords.longitude;
+const clusters = L.markerClusterGroup();
+map.addLayer(clusters);
 
-    map.setView([userLat, userLng], 13);
+let userLat, userLng;
+let routeLayer;
+let control = null;
 
-    L.circle([userLat, userLng], {
-        color: 'blue',
-        radius: 300
-    }).addTo(map).bindPopup("You are here").openPopup();
+/* 📍 LIVE LOCATION (BLUE CIRCLE) */
+navigator.geolocation.getCurrentPosition(pos=>{
+userLat = pos.coords.latitude;
+userLng = pos.coords.longitude;
 
-}, error => {
-    alert("Location access denied");
+map.setView([userLat,userLng],13);
+
+L.circle([userLat,userLng],{
+color:'blue',
+radius:300
+}).addTo(map).bindPopup("You are here").openPopup();
+
 });
 
-// 🌍 Famous Places
-const places = [
-    {name: "Eiffel Tower", lat: 48.8584, lng: 2.2945},
-    {name: "Statue of Liberty", lat: 40.6892, lng: -74.0445},
-    {name: "Taj Mahal", lat: 27.1751, lng: 78.0421},
-    {name: "Burj Khalifa", lat: 25.1972, lng: 55.2744}
+/* 🌍 GLOBAL SEARCH (NOMINATIM) */
+const searchBox=document.getElementById('searchBox');
+const suggestionBox=document.getElementById('suggestions');
+
+searchBox.addEventListener('keypress',function(e){
+if(e.key === "Enter"){
+let query = this.value;
+
+fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
+.then(res=>res.json())
+.then(data=>{
+if(!data.length){alert("Place not found");return;}
+
+let lat=data[0].lat;
+let lon=data[0].lon;
+
+map.setView([lat,lon],13);
+
+L.marker([lat,lon]).addTo(map)
+.bindPopup(query).openPopup();
+
+getRoute(lat,lon);
+});
+}
+});
+
+/* 🌍 YOUR POIs (UNCHANGED BUT UPGRADED) */
+const POIS = [
+{id:1,type:'restaurant',name:'Top In Town (Deccan)',lat:18.5156,lng:73.8486,desc:'Popular Bengali dishes'},
+{id:2,type:'restaurant',name:'Aha! Baangali (Wakad)',lat:18.5973,lng:73.7706,desc:'Home-style Bengali food'},
+{id:3,type:'temple',name:'Pune Kali Bari (Khadki)',lat:18.5369,lng:73.8448,desc:'Kali temple'},
+{id:4,type:'visit',name:'Shaniwar Wada',lat:18.5196,lng:73.8553,desc:'Historic fort palace'},
+{id:5,type:'temple',name:'Dagdusheth Ganpati',lat:18.51638889,lng:73.85583333,desc:'Ganesh Temple'}
 ];
 
-// Add markers
-places.forEach(place => {
-    let marker = L.marker([place.lat, place.lng]).addTo(map);
-    marker.bindPopup(place.name);
+let markersMap={};
 
-    marker.on('click', () => {
-        getRoute(place.lat, place.lng);
-    });
+function addPOIs(filter=''){
+clusters.clearLayers();
+markersMap={};
+
+POIS.forEach(p=>{
+if(!p.name.toLowerCase().includes(filter.toLowerCase())) return;
+
+const marker=L.marker([p.lat,p.lng])
+.bindPopup(`<b>${p.name}</b><br>${p.desc}
+<br><button onclick="getRoute(${p.lat},${p.lng})">
+Directions here</button>`);
+
+clusters.addLayer(marker);
+markersMap[p.name]=marker;
 });
-
-// 🔍 Search (Nominatim API)
-function searchPlace() {
-    let query = document.getElementById("search").value;
-
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
-    .then(res => res.json())
-    .then(data => {
-        let lat = data[0].lat;
-        let lon = data[0].lon;
-
-        map.setView([lat, lon], 13);
-        L.marker([lat, lon]).addTo(map);
-
-        getRoute(lat, lon);
-    });
 }
 
-// 🧭 Route using OSRM
-function getRoute(destLat, destLng) {
+addPOIs();
 
-    if (!userLat) {
-        alert("Wait for location...");
-        return;
-    }
+/* 🔍 LOCAL SEARCH SUGGESTION */
+searchBox.addEventListener('input',function(){
+const value=this.value.toLowerCase();
+suggestionBox.innerHTML='';
 
-    if (routeLayer) {
-        map.removeLayer(routeLayer);
-    }
+if(value===''){suggestionBox.style.display='none';addPOIs('');return;}
 
-    let url = `https://router.project-osrm.org/route/v1/driving/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+const filtered=POIS.filter(p=>p.name.toLowerCase().includes(value));
 
-    fetch(url)
-    .then(res => res.json())
-    .then(data => {
+filtered.forEach(place=>{
+const div=document.createElement('div');
+div.className='suggestion-item';
+div.innerText=place.name;
 
-        let coords = data.routes[0].geometry.coordinates;
+div.onclick=function(){
+searchBox.value=place.name;
+suggestionBox.style.display='none';
+addPOIs(place.name);
+map.setView([place.lat,place.lng],15);
+setTimeout(()=>{markersMap[place.name].openPopup();},300);
+};
 
-        let latlngs = coords.map(c => [c[1], c[0]]);
+suggestionBox.appendChild(div);
+});
 
-        routeLayer = L.polyline(latlngs, {color: 'red'}).addTo(map);
+suggestionBox.style.display='block';
+});
 
-        let distance = (data.routes[0].distance / 1000).toFixed(2);
-        let time = (data.routes[0].duration / 60).toFixed(1);
+/* 🧭 ROUTING + DISTANCE + TIME */
+function getRoute(destLat,destLng){
 
-        alert(`Distance: ${distance} km\nTime: ${time} minutes`);
+if(!userLat){
+alert("Waiting for your location...");
+return;
+}
 
-    });
+if(routeLayer){
+map.removeLayer(routeLayer);
+}
+
+/* OSRM API */
+let url = `https://router.project-osrm.org/route/v1/driving/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+
+fetch(url)
+.then(res=>res.json())
+.then(data=>{
+
+let coords = data.routes[0].geometry.coordinates;
+let latlngs = coords.map(c => [c[1], c[0]]);
+
+routeLayer = L.polyline(latlngs,{color:'red',weight:5}).addTo(map);
+
+let distance = (data.routes[0].distance/1000).toFixed(2);
+let time = (data.routes[0].duration/60).toFixed(1);
+
+L.popup()
+.setLatLng([destLat,destLng])
+.setContent(`<b>Route Info</b><br>Distance: ${distance} km<br>Time: ${time} min`)
+.openOn(map);
+
+});
+}
+
+/* Contribution Toggle */
+function toggleContribution(){
+const box=document.getElementById('contributionBox');
+box.style.display=box.style.display==='block'?'none':'block';
 }
 
 </script>
-
-</body>
-</html>
