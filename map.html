@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Map Nexus</title>
 
-<!-- ✅ Leaflet CSS (MUST be in head) -->
+<!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<!-- ✅ Routing Machine CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
 
 <style>
 body {
@@ -29,16 +32,17 @@ body {
   z-index: 1000;
 }
 
+/* Search */
 #searchBox {
   margin-left: auto;
-  margin-right: 30px;   /* 👈 adds gap from right */
+  margin-right: 30px;
   padding: 8px;
   border-radius: 6px;
   border: none;
   width: 250px;
 }
 
-/* Map (IMPORTANT) */
+/* Map */
 #map {
   position: absolute;
   top: 70px;
@@ -59,6 +63,13 @@ body {
   cursor: pointer;
   z-index: 1000;
 }
+
+/* 🔥 Style routing panel */
+.leaflet-routing-container {
+  width: 320px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
 </style>
 </head>
 
@@ -73,11 +84,13 @@ body {
 
 <div id="contributeBtn">Contribute</div>
 
-<!-- ✅ Leaflet JS (MUST come BEFORE your script) -->
+<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<!-- ✅ Routing Machine JS -->
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+
 <script>
-// ✅ Now L is defined (no error)
 
 const map = L.map('map').setView([20, 0], 2);
 
@@ -87,27 +100,24 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 
 let userLat = null;
 let userLng = null;
-let routeLayer = null;
+let routingControl = null;
 
 /* 📍 Live Location */
 if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      userLat = pos.coords.latitude;
-      userLng = pos.coords.longitude;
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
 
-      map.setView([userLat, userLng], 13);
+    map.setView([userLat, userLng], 13);
 
-      L.circle([userLat, userLng], {
-        color: 'blue',
-        radius: 150
-      }).addTo(map).bindPopup("You are here").openPopup();
-    },
-    err => console.log("Location blocked")
-  );
+    L.circle([userLat, userLng], {
+      color: 'blue',
+      radius: 150
+    }).addTo(map).bindPopup("You are here").openPopup();
+  });
 }
 
-/* 🌍 Search */
+/* 🌍 SEARCH */
 document.getElementById("searchBox").addEventListener("keypress", function(e){
   if (e.key === "Enter") {
 
@@ -130,7 +140,7 @@ document.getElementById("searchBox").addEventListener("keypress", function(e){
       L.marker([lat, lon]).addTo(map)
       .bindPopup(query).openPopup();
 
-      getRoute(lat, lon);
+      showRoute(lat, lon);
     });
   }
 });
@@ -148,46 +158,37 @@ places.forEach(p=>{
   marker.bindPopup(p.name);
 
   marker.on('click', ()=>{
-    getRoute(p.lat, p.lng);
+    showRoute(p.lat, p.lng);
   });
 });
 
-/* 🧭 Routing */
-function getRoute(destLat, destLng){
+/* 🧭 ROUTING PANEL FUNCTION */
+function showRoute(destLat, destLng){
 
   if (!userLat) {
     alert("Waiting for your location...");
     return;
   }
 
-  if (routeLayer) {
-    map.removeLayer(routeLayer);
+  if (routingControl) {
+    map.removeControl(routingControl);
   }
 
-  let url = `https://router.project-osrm.org/route/v1/driving/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+  routingControl = L.Routing.control({
+    waypoints: [
+      L.latLng(userLat, userLng),
+      L.latLng(destLat, destLng)
+    ],
 
-  fetch(url)
-  .then(res => res.json())
-  .then(data => {
+    routeWhileDragging: false,
+    addWaypoints: false,
 
-    if (!data.routes || !data.routes.length) {
-      alert("Route not found");
-      return;
-    }
+    lineOptions: {
+      styles: [{ color: 'red', weight: 5 }]
+    },
 
-    let coords = data.routes[0].geometry.coordinates;
-    let latlngs = coords.map(c => [c[1], c[0]]);
-
-    routeLayer = L.polyline(latlngs,{
-      color:'red',
-      weight:5
-    }).addTo(map);
-
-    let distance = (data.routes[0].distance/1000).toFixed(2);
-    let time = (data.routes[0].duration/60).toFixed(1);
-
-    alert(`Distance: ${distance} km\nTime: ${time} minutes`);
-  });
+    show: true
+  }).addTo(map);
 }
 
 </script>
