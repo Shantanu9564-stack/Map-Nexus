@@ -146,13 +146,6 @@ document.getElementById("searchBox").addEventListener("keypress", function(e){
 });
 
 /* 🌍 Famous places */
-const places = [
-  {name:"Eiffel Tower", lat:48.8584, lng:2.2945},
-  {name:"Statue of Liberty", lat:40.6892, lng:-74.0445},
-  {name:"Taj Mahal", lat:27.1751, lng:78.0421},
-  {name:"Burj Khalifa", lat:25.1972, lng:55.2744}
-];
-
 places.forEach(p=>{
   let marker = L.marker([p.lat,p.lng]).addTo(map);
   marker.bindPopup(p.name);
