@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Map Nexus</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 
 <style>
 body { margin:0; font-family: Arial; }
@@ -14,174 +15,197 @@ body { margin:0; font-family: Arial; }
 #map {
   margin-top:70px;
   height:calc(100vh - 70px);
+  width:100%;
 }
 
 #suggestions {
   position:absolute;
-  top:60px;
+  top:55px;
   right:15px;
-  width:320px;
+  width:220px;
   background:white;
   border-radius:6px;
   box-shadow:0 2px 6px rgba(0,0,0,0.2);
-  max-height:250px;
+  max-height:200px;
   overflow-y:auto;
   display:none;
-  z-index:9999;
+  z-index:1500;
 }
 
 .suggestion-item {
-  padding:10px;
+  padding:8px;
   cursor:pointer;
   border-bottom:1px solid #eee;
 }
 .suggestion-item:hover { background:#f1f5f9; }
 
+/* Contribution Button */
+#contributeBtn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #e11d48;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: bold;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  z-index: 2000;
+}
+
+#contributionBox {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  display: none;
+  z-index: 2000;
+  width: 250px;
+}
 </style>
 </head>
 
 <body>
 
 <!-- HEADER -->
-<div style="position:absolute;top:0;width:100%;background:#1e293b;color:white;
-z-index:1200;padding:10px;display:flex;gap:10px;align-items:center;">
+<div style="position:absolute;top:0;left:0;width:100%;background:#1e293b;color:white;
+z-index:1200;padding:10px 15px;display:flex;align-items:center;gap:12px;
+box-shadow:0 2px 6px rgba(0,0,0,0.3)">
 
 <img src="./logo.png" style="width:40px;height:40px;border-radius:50%;border:2px solid white;" />
 
 <div style="flex:1">
-<b>Map Nexus</b><br>
-<small>The World</small>
+<div style="font-size:18px;font-weight:bold;">Map Nexus</div>
+<div style="font-size:12px;opacity:0.8">
+The World 
+</div>
 </div>
 
-<input id="searchBox" placeholder="Search location..." />
-
-<select id="mode">
-<option value="driving">🚗</option>
-<option value="cycling">🚴</option>
-<option value="walking">🚶</option>
-</select>
-
+<input type="text" id="searchBox"
+placeholder="Search place name..."
+style="padding:6px 10px;border-radius:6px;border:none;width:220px;" />
 </div>
 
 <div id="map"></div>
 <div id="suggestions"></div>
 
+<!-- Contribution Button -->
+<div id="contributeBtn" onclick="toggleContribution()">Contribute</div>
+
+<div id="contributionBox">
+<p>Want to add a Bengali place?</p>
+<a href="mailto:shantanusarkar867@gmail.com?subject=Add Place">
+shantanusarkar867@gmail.com
+</a>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
 
 <script>
-const map = L.map('map').setView([22.9734,78.6569], 5); // India center
+const map = L.map('map').setView([18.5204,73.8567], 12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
+maxZoom:19,
+attribution:'© OpenStreetMap'
 }).addTo(map);
 
-/* 🔵 LIVE LOCATION (BLUE DOT) */
-let userMarker, accuracyCircle;
+const clusters = L.markerClusterGroup();
+map.addLayer(clusters);
 
-if(navigator.geolocation){
-navigator.geolocation.watchPosition(pos => {
+const POIS = [
+{id:1,type:'restaurant',name:'Top In Town (Deccan)',lat:18.5156,lng:73.8486,desc:'Popular Bengali dishes'},
+{id:2,type:'restaurant',name:'Aha! Baangali (Wakad)',lat:18.5973,lng:73.7706,desc:'Home-style Bengali food'},
+{id:3,type:'temple',name:'Pune Kali Bari (Khadki)',lat:18.5369,lng:73.8448,desc:'Kali temple'},
+{id:4,type:'visit',name:'Shaniwar Wada',lat:18.5196,lng:73.8553,desc:'Historic fort palace'},
+{id:5,type:'temple',name:'Dagdusheth Ganpati',lat:18.51638889,lng:73.85583333,desc:'Ganesh Temple'}
+];
 
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-    const acc = pos.coords.accuracy;
+let markersMap={};
 
-    if(!userMarker){
-        userMarker = L.circleMarker([lat,lng],{
-            radius:8,
-            color:'white',
-            fillColor:'#1E90FF',
-            fillOpacity:1
-        }).addTo(map);
+function addPOIs(filter=''){
+clusters.clearLayers();
+markersMap={};
 
-        accuracyCircle = L.circle([lat,lng],{
-            radius:acc,
-            color:'#1E90FF',
-            fillOpacity:0.2
-        }).addTo(map);
-    } else {
-        userMarker.setLatLng([lat,lng]);
-        accuracyCircle.setLatLng([lat,lng]).setRadius(acc);
-    }
+POIS.forEach(p=>{
+if(!p.name.toLowerCase().includes(filter.toLowerCase())) return;
 
-}, {enableHighAccuracy:true});
+const marker=L.marker([p.lat,p.lng])
+.bindPopup(`<b>${p.name}</b><br>${p.desc}
+<br><button onclick="startRoute(${p.lat},${p.lng})">
+Directions here</button>`);
+
+clusters.addLayer(marker);
+markersMap[p.name]=marker;
+});
 }
 
-/* 🌍 GLOBAL INDIA SEARCH */
+addPOIs();
+
+/* Search */
 const searchBox=document.getElementById('searchBox');
 const suggestionBox=document.getElementById('suggestions');
 
-let searchMarker=null;
+searchBox.addEventListener('input',function(){
+const value=this.value.toLowerCase();
+suggestionBox.innerHTML='';
 
-searchBox.addEventListener('input', async function(){
+if(value===''){suggestionBox.style.display='none';addPOIs('');return;}
 
-    const query=this.value.trim();
+const filtered=POIS.filter(p=>p.name.toLowerCase().includes(value));
 
-    if(query.length<3){
-        suggestionBox.style.display='none';
-        return;
-    }
+filtered.forEach(place=>{
+const div=document.createElement('div');
+div.className='suggestion-item';
+div.innerText=place.name;
 
-    try{
-        const res=await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`
-        );
+div.onclick=function(){
+searchBox.value=place.name;
+suggestionBox.style.display='none';
+addPOIs(place.name);
+map.setView([place.lat,place.lng],15);
+setTimeout(()=>{markersMap[place.name].openPopup();},300);
+};
 
-        const data=await res.json();
-
-        suggestionBox.innerHTML='';
-
-        if(!data.features || data.features.length===0){
-            suggestionBox.style.display='none';
-            return;
-        }
-
-        data.features.forEach(place=>{
-
-            const coords=place.geometry.coordinates;
-            const lat=coords[1];
-            const lon=coords[0];
-
-            const props=place.properties;
-
-            // ✅ Force India filtering
-            if(props.country !== "India") return;
-
-            const name=[
-                props.name,
-                props.city,
-                props.state
-            ].filter(Boolean).join(", ");
-
-            const div=document.createElement('div');
-            div.className='suggestion-item';
-            div.innerText=name;
-
-            div.onclick=function(){
-
-                map.setView([lat,lon],15);
-
-                if(searchMarker){
-                    map.removeLayer(searchMarker);
-                }
-
-                searchMarker=L.marker([lat,lon])
-                .addTo(map)
-                .bindPopup(name)
-                .openPopup();
-
-                suggestionBox.style.display='none';
-            };
-
-            suggestionBox.appendChild(div);
-        });
-
-        suggestionBox.style.display='block';
-
-    } catch(err){
-        console.error(err);
-    }
+suggestionBox.appendChild(div);
 });
+
+suggestionBox.style.display='block';
+});
+
+/* Routing */
+let control=null;
+function startRoute(destLat,destLng){
+if(!navigator.geolocation){alert('Enable location');return;}
+
+navigator.geolocation.getCurrentPosition(pos=>{
+if(!control){
+control=L.Routing.control({
+router:L.Routing.osrmv1({
+serviceUrl:'https://router.project-osrm.org/route/v1'
+}),
+addWaypoints:false
+}).addTo(map);
+}
+
+control.setWaypoints([
+L.latLng(pos.coords.latitude,pos.coords.longitude),
+L.latLng(destLat,destLng)
+]);
+});
+}
+
+/* Contribution Toggle */
+function toggleContribution(){
+const box=document.getElementById('contributionBox');
+box.style.display=box.style.display==='block'?'none':'block';
+}
 </script>
+
 </body>
 </html>
