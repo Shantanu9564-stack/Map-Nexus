@@ -1,156 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Map Nexus</title>
+
+<!-- ✅ Leaflet CSS (MUST be in head) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+/* Header */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 70px;
+  background: #1e293b;
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  z-index: 1000;
+}
+
+/* Search */
+#searchBox {
+  margin-left: auto;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  width: 250px;
+}
+
+/* Map (IMPORTANT) */
+#map {
+  position: absolute;
+  top: 70px;
+  left: 0;
+  width: 100%;
+  height: calc(100vh - 70px);
+}
+
+/* Button */
+#contributeBtn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #e11d48;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 30px;
+  cursor: pointer;
+  z-index: 1000;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>Map Nexus 🌍</h2>
+  <input type="text" id="searchBox" placeholder="Search & press Enter">
+</div>
+
+<div id="map"></div>
+
+<div id="contributeBtn">Contribute</div>
+
+<!-- ✅ Leaflet JS (MUST come BEFORE your script) -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
+// ✅ Now L is defined (no error)
 
 const map = L.map('map').setView([20, 0], 2);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19,
-attribution:'© OpenStreetMap'
+  attribution:'© OpenStreetMap'
 }).addTo(map);
 
-const clusters = L.markerClusterGroup();
-map.addLayer(clusters);
+let userLat = null;
+let userLng = null;
+let routeLayer = null;
 
-let userLat, userLng;
-let routeLayer;
-let control = null;
+/* 📍 Live Location */
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
 
-/* 📍 LIVE LOCATION (BLUE CIRCLE) */
-navigator.geolocation.getCurrentPosition(pos=>{
-userLat = pos.coords.latitude;
-userLng = pos.coords.longitude;
+      map.setView([userLat, userLng], 13);
 
-map.setView([userLat,userLng],13);
-
-L.circle([userLat,userLng],{
-color:'blue',
-radius:300
-}).addTo(map).bindPopup("You are here").openPopup();
-
-});
-
-/* 🌍 GLOBAL SEARCH (NOMINATIM) */
-const searchBox=document.getElementById('searchBox');
-const suggestionBox=document.getElementById('suggestions');
-
-searchBox.addEventListener('keypress',function(e){
-if(e.key === "Enter"){
-let query = this.value;
-
-fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
-.then(res=>res.json())
-.then(data=>{
-if(!data.length){alert("Place not found");return;}
-
-let lat=data[0].lat;
-let lon=data[0].lon;
-
-map.setView([lat,lon],13);
-
-L.marker([lat,lon]).addTo(map)
-.bindPopup(query).openPopup();
-
-getRoute(lat,lon);
-});
+      L.circle([userLat, userLng], {
+        color: 'blue',
+        radius: 300
+      }).addTo(map).bindPopup("You are here").openPopup();
+    },
+    err => console.log("Location blocked")
+  );
 }
+
+/* 🌍 Search */
+document.getElementById("searchBox").addEventListener("keypress", function(e){
+  if (e.key === "Enter") {
+
+    let query = this.value;
+
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
+    .then(res => res.json())
+    .then(data => {
+
+      if (!data.length) {
+        alert("Place not found");
+        return;
+      }
+
+      let lat = parseFloat(data[0].lat);
+      let lon = parseFloat(data[0].lon);
+
+      map.setView([lat, lon], 13);
+
+      L.marker([lat, lon]).addTo(map)
+      .bindPopup(query).openPopup();
+
+      getRoute(lat, lon);
+    });
+  }
 });
 
-/* 🌍 YOUR POIs (UNCHANGED BUT UPGRADED) */
-const POIS = [
-{id:1,type:'restaurant',name:'Top In Town (Deccan)',lat:18.5156,lng:73.8486,desc:'Popular Bengali dishes'},
-{id:2,type:'restaurant',name:'Aha! Baangali (Wakad)',lat:18.5973,lng:73.7706,desc:'Home-style Bengali food'},
-{id:3,type:'temple',name:'Pune Kali Bari (Khadki)',lat:18.5369,lng:73.8448,desc:'Kali temple'},
-{id:4,type:'visit',name:'Shaniwar Wada',lat:18.5196,lng:73.8553,desc:'Historic fort palace'},
-{id:5,type:'temple',name:'Dagdusheth Ganpati',lat:18.51638889,lng:73.85583333,desc:'Ganesh Temple'}
+/* 🌍 Famous places */
+const places = [
+  {name:"Eiffel Tower", lat:48.8584, lng:2.2945},
+  {name:"Statue of Liberty", lat:40.6892, lng:-74.0445},
+  {name:"Taj Mahal", lat:27.1751, lng:78.0421},
+  {name:"Burj Khalifa", lat:25.1972, lng:55.2744}
 ];
 
-let markersMap={};
+places.forEach(p=>{
+  let marker = L.marker([p.lat,p.lng]).addTo(map);
+  marker.bindPopup(p.name);
 
-function addPOIs(filter=''){
-clusters.clearLayers();
-markersMap={};
-
-POIS.forEach(p=>{
-if(!p.name.toLowerCase().includes(filter.toLowerCase())) return;
-
-const marker=L.marker([p.lat,p.lng])
-.bindPopup(`<b>${p.name}</b><br>${p.desc}
-<br><button onclick="getRoute(${p.lat},${p.lng})">
-Directions here</button>`);
-
-clusters.addLayer(marker);
-markersMap[p.name]=marker;
-});
-}
-
-addPOIs();
-
-/* 🔍 LOCAL SEARCH SUGGESTION */
-searchBox.addEventListener('input',function(){
-const value=this.value.toLowerCase();
-suggestionBox.innerHTML='';
-
-if(value===''){suggestionBox.style.display='none';addPOIs('');return;}
-
-const filtered=POIS.filter(p=>p.name.toLowerCase().includes(value));
-
-filtered.forEach(place=>{
-const div=document.createElement('div');
-div.className='suggestion-item';
-div.innerText=place.name;
-
-div.onclick=function(){
-searchBox.value=place.name;
-suggestionBox.style.display='none';
-addPOIs(place.name);
-map.setView([place.lat,place.lng],15);
-setTimeout(()=>{markersMap[place.name].openPopup();},300);
-};
-
-suggestionBox.appendChild(div);
+  marker.on('click', ()=>{
+    getRoute(p.lat, p.lng);
+  });
 });
 
-suggestionBox.style.display='block';
-});
+/* 🧭 Routing */
+function getRoute(destLat, destLng){
 
-/* 🧭 ROUTING + DISTANCE + TIME */
-function getRoute(destLat,destLng){
+  if (!userLat) {
+    alert("Waiting for your location...");
+    return;
+  }
 
-if(!userLat){
-alert("Waiting for your location...");
-return;
-}
+  if (routeLayer) {
+    map.removeLayer(routeLayer);
+  }
 
-if(routeLayer){
-map.removeLayer(routeLayer);
-}
+  let url = `https://router.project-osrm.org/route/v1/driving/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson`;
 
-/* OSRM API */
-let url = `https://router.project-osrm.org/route/v1/driving/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+  fetch(url)
+  .then(res => res.json())
+  .then(data => {
 
-fetch(url)
-.then(res=>res.json())
-.then(data=>{
+    if (!data.routes || !data.routes.length) {
+      alert("Route not found");
+      return;
+    }
 
-let coords = data.routes[0].geometry.coordinates;
-let latlngs = coords.map(c => [c[1], c[0]]);
+    let coords = data.routes[0].geometry.coordinates;
+    let latlngs = coords.map(c => [c[1], c[0]]);
 
-routeLayer = L.polyline(latlngs,{color:'red',weight:5}).addTo(map);
+    routeLayer = L.polyline(latlngs,{
+      color:'red',
+      weight:5
+    }).addTo(map);
 
-let distance = (data.routes[0].distance/1000).toFixed(2);
-let time = (data.routes[0].duration/60).toFixed(1);
+    let distance = (data.routes[0].distance/1000).toFixed(2);
+    let time = (data.routes[0].duration/60).toFixed(1);
 
-L.popup()
-.setLatLng([destLat,destLng])
-.setContent(`<b>Route Info</b><br>Distance: ${distance} km<br>Time: ${time} min`)
-.openOn(map);
-
-});
-}
-
-/* Contribution Toggle */
-function toggleContribution(){
-const box=document.getElementById('contributionBox');
-box.style.display=box.style.display==='block'?'none':'block';
+    alert(`Distance: ${distance} km\nTime: ${time} minutes`);
+  });
 }
 
 </script>
+
+</body>
+</html>
