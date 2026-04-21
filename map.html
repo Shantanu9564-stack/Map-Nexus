@@ -100,7 +100,7 @@ if (navigator.geolocation) {
 
       L.circle([userLat, userLng], {
         color: 'blue',
-        radius: 300
+        radius: 150
       }).addTo(map).bindPopup("You are here").openPopup();
     },
     err => console.log("Location blocked")
